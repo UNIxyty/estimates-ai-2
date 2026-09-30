@@ -98,8 +98,10 @@ def test_cost_cap_pauses_run_and_posts_card():
     card = db.fetchone("SELECT * FROM cards WHERE run_id=%s AND kind='cost_cap'", (run["id"],))
     assert card and card["status"] == "pending"
     # "continue" raises the cap and resumes
+    # what the web API does on "continue": state-guarded card update + cap raised by RUN_COST_CAP_USD
     db.execute("""UPDATE cards SET status='continued', decision='{"action":"continue","data":{}}' WHERE id=%s""",
                (card["id"],))
+    db.execute("UPDATE runs SET cost_cap_usd = cost_cap_usd + 2 WHERE id=%s", (run["id"],))
     llm.set_bedrock_factory(lambda: fx.FakeBedrock([fx.text_response("Because of the norm.")]))
     agent_run.resume_run({"run_id": str(run["id"]), "card_id": str(card["id"])})
     r = db.fetchone("SELECT status, cost_cap_usd FROM runs WHERE id=%s", (run["id"],))

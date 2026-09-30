@@ -44,6 +44,7 @@ services:
       args:
         BUILD_HASH: ${BUILD_HASH:-dev}
     restart: unless-stopped
+    init: true                # forward signals to node
     env_file: .env
     environment:
       WORKER_URL: http://worker:8000

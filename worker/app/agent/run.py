@@ -141,8 +141,7 @@ def resume_run(payload: dict) -> None:
         if action == "stop" or card["status"] == "stopped":
             rc.set_status("cancelled")
             return
-        db.execute("UPDATE runs SET cost_cap_usd = cost_cap_usd + %s WHERE id=%s",
-                   (settings.run_cost_cap_usd, rc.run_id))
+        # The web API already raised runs.cost_cap_usd by RUN_COST_CAP_USD under its state guard.
         rc.refresh()
     elif card["kind"] == "permission" and card["status"] not in ("approved", "denied"):
         return  # undone or expired meanwhile
