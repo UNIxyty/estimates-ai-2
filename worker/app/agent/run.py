@@ -42,10 +42,15 @@ def _classify(rc: RunContext, text: str, atts: list[dict]) -> str:
         return task
     if not llm.available():
         return "simple_question"
-    out = llm.complete_json("classify", router.CLASSIFY_SYSTEM, f"Message:\n{text[:4000]}\n\nAn estimate exists in "
-                            f"this chat: {'yes' if has_doc else 'no'}.", router.CLASSIFY_SCHEMA, ctx=rc.ctx,
-                            max_tokens=200)
-    return out.get("task") or "simple_question"
+    try:
+        out = llm.complete_json("classify", router.CLASSIFY_SYSTEM, f"Message:\n{text[:4000]}\n\nAn estimate exists "
+                                f"in this chat: {'yes' if has_doc else 'no'}.", router.CLASSIFY_SCHEMA, ctx=rc.ctx,
+                                max_tokens=200, forced_tier=rc.forced_tier)
+    except llm.LLMError:
+        return "simple_question"  # unclassifiable → cheapest sensible route (Fast answers still escalate)
+    task = out.get("task")
+    return task if task in ("simple_question", "short_reply", "complex_reasoning", "generate", "email") \
+        else "simple_question"
 
 
 def _dispatch(rc: RunContext, card: dict | None = None) -> None:

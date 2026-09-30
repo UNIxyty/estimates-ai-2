@@ -118,7 +118,6 @@ def _lv_sheet(ws, rows, *, blank: bool, rate_label: float | None, formulas_in_bl
     ws[f"B{tot + 3}"] = "Darba devēja sociālais nodoklis 23,59 %"
     ws[f"B{tot + 4}"] = "Transporta izdevumi"
     ws[f"N{tot + 4}"] = 0.03
-    ws[f"N{tot + 4}"].number_format = "0%"
     ws[f"B{tot + 5}"] = "Pavisam kopā"
     ws[f"B{tot + 5}"].font = BOLD
     if not blank or formulas_in_blank:
@@ -131,6 +130,7 @@ def _lv_sheet(ws, rows, *, blank: bool, rate_label: float | None, formulas_in_bl
     for row in ws.iter_rows(min_row=8, max_row=tot + 5, min_col=5, max_col=15):
         for c in row:
             c.number_format = '#,##0.00 "€"' if c.column > 6 else "0.00"
+    ws[f"N{tot + 4}"].number_format = "0%"
     ws.column_dimensions["B"].width = 45
     return tot
 

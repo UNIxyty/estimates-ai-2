@@ -124,7 +124,9 @@ class RunContext:
         return m
 
     def complete_message(self, message_id: str, *, content: str, parts: list | None = None) -> None:
-        """Finalise an assistant message; footer tier/cost/tokens come from the ledger rows for it."""
+        """Finalise an assistant message; footer tier/cost/tokens come from the ledger rows for it.
+        Run-level calls not yet attributed to a message (flow steps) are attributed to this one."""
+        db.execute("UPDATE usage SET message_id=%s WHERE run_id=%s AND message_id IS NULL", (message_id, self.run_id))
         agg = db.fetchone("""SELECT COALESCE(SUM(cost_usd),0) AS cost,
                                     COALESCE(SUM(input_tokens),0) AS input, COALESCE(SUM(output_tokens),0) AS output,
                                     COALESCE(SUM(cache_read_tokens),0) AS cache_read,

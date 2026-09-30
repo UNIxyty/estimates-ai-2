@@ -29,8 +29,8 @@ def priced_to_row(pr: PricedRow) -> dict:
 
 
 def compute_totals(rows: list[dict]) -> dict:
-    tl = sum(r["total_labour"] or 0 for r in rows)
-    tm = sum(r["total_material"] or 0 for r in rows)
+    tl = sum(float(r["total_labour"] or 0) for r in rows)
+    tm = sum(float(r["total_material"] or 0) for r in rows)
     flags = lambda f: sum(1 for r in rows if f in (r.get("flags") or []))  # noqa: E731
     return {"labour": round(tl, 2), "material": round(tm, 2), "total": round(tl + tm, 2), "rows": len(rows),
             "priced": sum(1 for r in rows if r["unit_labour"] is not None or r["unit_material"] is not None),

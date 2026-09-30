@@ -83,6 +83,8 @@ class RowInfo:
     hidden: bool = False
     bold: bool = False
     markup: dict[str, Any] | None = None
+    text_col: str | None = None     # column letter the text came from (item column, or a fallback column)
+    category_label: str | None = None
 
 
 @dataclass
@@ -965,7 +967,7 @@ def _row_texts(sd: SheetData, row: list[Any], skip: set[int]) -> list[tuple[int,
 def _build_rows(ss: SheetStructure, sd: SheetData) -> None:
     by = {c.meaning: c.idx for c in ss.columns if c.meaning not in ("unknown",)}
     item_c, unit_c, qty_c = by.get("item"), by.get("unit"), by.get("qty")
-    no_c, code_c, src_c = by.get("no"), by.get("code"), by.get("source")
+    no_c, code_c, src_c, cat_c = by.get("no"), by.get("code"), by.get("source"), by.get("category")
     num_meanings = [m for m in NUMERIC_MEANINGS if m in by and m != "qty"]
     unit_block_cols = {by[m] for m in UNIT_BLOCK if m in by}
     header_texts = {normalise_text(c.header) for c in ss.columns if c.header}
@@ -988,10 +990,16 @@ def _build_rows(ss: SheetStructure, sd: SheetData) -> None:
             item_txt = str(item_txt)
         if isinstance(item_txt, str) and item_txt.startswith("="):
             item_txt = None
+        text_c = item_c if item_txt else None
         if not item_txt:
-            others = [t for c, t in texts if c not in (no_c, code_c, src_c)]
-            item_txt = max(others, key=len) if others else None
+            others = [(c, t) for c, t in texts if c not in (no_c, code_c, src_c)]
+            if others:
+                text_c, item_txt = max(others, key=lambda x: len(x[1]))
         ri.text = item_txt.strip() if isinstance(item_txt, str) else None
+        ri.text_col = get_column_letter(text_c) if text_c else None
+        if cat_c:
+            v = sd.get(r, cat_c)
+            ri.category_label = str(v).strip() if v is not None and str(v).strip() else None
         if no_c:
             v = sd.get(r, no_c)
             ri.number = None if v is None else (str(int(v)) if isinstance(v, float) and v.is_integer() else str(v))
@@ -1034,13 +1042,14 @@ def _build_rows(ss: SheetStructure, sd: SheetData) -> None:
                 ri.kind = "blank"
         elif header_texts and sum(1 for _, t in texts if normalise_text(t) in header_texts) >= 2:
             ri.kind = "header"
-        elif not qty_ok and (_MARKUP_RX.search(n_full) and (_PCT_IN_TEXT.search(full_text) or has_price
-                                                            or _pct_cell(sd, r, row))
-                             and last_item_row is not None):
+        elif not qty_ok and not _GRAND_RX.search(n_full) and (
+                _MARKUP_RX.search(n_full) and (_PCT_IN_TEXT.search(full_text) or has_price or _pct_cell(sd, r, row))
+                and last_item_row is not None):
             ri.kind = "total"
             ri.markup = _markup_info(sd, r, row, full_text, ss)
         elif not qty_ok and not unit_ok and (_SUBTOTAL_RX.search(n_text or n_full) or _GRAND_RX.search(n_full)):
-            if _GRAND_RX.search(n_full) or current is None or seen_grand:
+            if _GRAND_RX.search(n_full) or current is None or seen_grand or \
+                    _closes_everything(ri, rows, sections, current):
                 ri.kind = "total"
                 if current is not None and current.subtotal_row is None:
                     current.row_end = r - 1
@@ -1095,6 +1104,34 @@ def _build_rows(ss: SheetStructure, sd: SheetData) -> None:
                 tot[tm] += v
     ss.totals = {k: round(v, 4) for k, v in tot.items()}
     del unit_block_cols
+
+
+_SUM_KEYS = ("total", "total_labour", "total_material", "total_norm_h", "total_mechanisms")
+
+
+def _closes_everything(ri: RowInfo, rows: list[RowInfo], sections: list[Section], current: Section) -> bool:
+    """A 'Kopā'/'I alt' row below several sections: is it the current section's subtotal or the sheet total?"""
+    since = 0
+    for i in range(len(rows) - 1, -1, -1):
+        if rows[i].kind == "total":
+            since = i + 1
+            break
+    block = rows[since:]
+    for key in _SUM_KEYS:
+        v = ri.values.get(key)
+        if not v:
+            continue
+        sec_sum = sum((x.values.get(key) or 0.0) for x in block if x.kind == "item" and x.row >= current.row_start)
+        all_sum = sum((x.values.get(key) or 0.0) for x in block if x.kind == "item")
+        if close(v, sec_sum, rel=0.002) and not close(v, all_sum, rel=0.002):
+            return False
+        if close(v, all_sum, rel=0.002) and not close(v, sec_sum, rel=0.002):
+            return True
+        break
+    # no numbers to decide: earlier sections in this block without their own subtotal -> sheet total
+    first_row = block[0].row if block else 0
+    earlier = [s for s in sections if s is not current and s.row_start >= first_row]
+    return bool(earlier) and all(s.subtotal_row is None for s in earlier)
 
 
 def _pct_cell(sd: SheetData, r: int, row: list[Any]) -> bool:

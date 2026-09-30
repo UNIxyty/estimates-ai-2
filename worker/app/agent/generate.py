@@ -25,6 +25,9 @@ _QTY_UNIT = r"(\d+(?:[.,]\d+)?)\s*(m2|m²|m3|m|gab\.?|gb|pcs?|stk\.?|kompl\.?|kp
 _TRAIL = re.compile(rf"^(?P<text>.+?)[\s,;:–—-]+{_QTY_UNIT}\s*$", re.I)
 _LEAD = re.compile(rf"^{_QTY_UNIT}\s*[x×]?\s+(?P<text>.+)$", re.I)
 _BULLET = re.compile(r"^\s*(?:\d+[.)]|[-•*])\s*")
+# A line like "Sagatavo tāmi:" / "Please make an estimate for:" is the request, not a section heading.
+_REQUEST = re.compile(r"\b(sagatavo|izveido|uztaisi|aprēķini|generate|create|make|build|prepare|price|lav|opret|"
+                      r"beregn|tām|estimate|budget|tilbud|overslag|please|lūdzu)\w*", re.I)
 
 
 def parse_work_list(text: str) -> tuple[list[dict], int]:
@@ -35,7 +38,8 @@ def parse_work_list(text: str) -> tuple[list[dict], int]:
         if not line:
             continue
         if line.endswith(":") and len(line) < 80:
-            section = line[:-1].strip()
+            if not _REQUEST.search(line):
+                section = line[:-1].strip()
             continue
         m = _TRAIL.match(line) or _LEAD.match(line)
         if m:

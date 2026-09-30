@@ -73,7 +73,13 @@ def build(template_path: str, out_path: str, *, sheet, sections: list[dict], lan
     item_formulas = {c: s["value"] for c, s in enumerate(item_style, start=1)
                      if isinstance(s["value"], str) and s["value"].startswith("=")}
     section_merges = [m for m in ws.merged_cells.ranges if sample["section"] and m.min_row == m.max_row == sample["section"]]
-    tail_first = last + 1
+    # The template's grand-total row anchors everything below it (markups such as social tax reference it),
+    # so rows after it are carried over with formulas shifted by (new grand row - old grand row).
+    data_end = max((r for r, k in kinds.items() if k in ("item", "section", "subtotal")), default=last)
+    template_grand = next((r for r in range(data_end + 1, ws.max_row + 1) if kinds.get(r) == "total"), None)
+    grand_style = _row_style(ws, template_grand, max_col) if template_grand else subtotal_style
+    grand_text = next((r.text for r in sheet.rows if r.row == template_grand), None) if template_grand else None
+    tail_first = (template_grand + 1) if template_grand else data_end + 1
     tail = [(_row_style(ws, r, max_col), ws.row_dimensions[r].height) for r in range(tail_first, ws.max_row + 1)]
     tail_merges = [m for m in ws.merged_cells.ranges if m.min_row >= tail_first]
 
@@ -120,8 +126,8 @@ def build(template_path: str, out_path: str, *, sheet, sections: list[dict], lan
         r += 1
 
     # grand total + carried-over tail (markups etc.), formulas shifted by the row offset
-    _apply_style(ws, r, subtotal_style)
-    ws[f"{item_col}{r}"] = TOTAL_WORD.get((lang or "EN").upper(), "Total")
+    _apply_style(ws, r, grand_style)
+    ws[f"{item_col}{r}"] = grand_text or TOTAL_WORD.get((lang or "EN").upper(), "Total")
     for tc in total_cols:
         ws[f"{tc}{r}"] = "=" + "+".join(f"{tc}{s}" for s in subtotal_rows) if subtotal_rows else 0
     grand = r
@@ -129,8 +135,8 @@ def build(template_path: str, out_path: str, *, sheet, sections: list[dict], lan
     for i, (style, height) in enumerate(tail):
         rr = grand + 1 + i
         _apply_style(ws, rr, style)
-        for c, s in enumerate(style, start=1):
-            v = s["value"]
+        for c, st in enumerate(style, start=1):
+            v = st["value"]
             if isinstance(v, str) and v.startswith("="):
                 v = Translator(v, origin=f"{get_column_letter(c)}{tail_first + i}").translate_formula(
                     f"{get_column_letter(c)}{rr}")
