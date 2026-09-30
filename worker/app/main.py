@@ -4,7 +4,6 @@ On start: run migrations, then start job threads. Endpoints other than /health r
 X-Internal-Token (web is the only caller)."""
 from __future__ import annotations
 
-import asyncio
 import hmac
 import json
 import logging
@@ -93,7 +92,7 @@ async def run_events(run_id: str, request: Request, after: int = 0,
         raise HTTPException(404, "run not found")
 
     async def gen():
-        last = after
+        last, idle = after, 0
         aconn = await psycopg.AsyncConnection.connect(settings.database_url, autocommit=True)
         try:
             await aconn.execute("LISTEN run_events")
@@ -115,13 +114,14 @@ async def run_events(run_id: str, request: Request, after: int = 0,
                     return
                 if await request.is_disconnected():
                     return
-                # wait for a notify for this run (or ping every 15s)
-                try:
-                    async with asyncio.timeout(15):
-                        async for n in aconn.notifies():
-                            if n.payload == run_id:
-                                break
-                except TimeoutError:
+                # Wake on a NOTIFY for this run, but never wait more than 1 s: a notify that arrived between
+                # the query above and this wait would otherwise be missed. Ping every ~15 s of silence.
+                woke = False
+                async for n in aconn.notifies(timeout=1.0, stop_after=1):
+                    woke = woke or n.payload == run_id
+                idle = 0 if (rows or woke) else idle + 1
+                if idle >= 15:
+                    idle = 0
                     yield ": ping\n\n"
         finally:
             await aconn.close()

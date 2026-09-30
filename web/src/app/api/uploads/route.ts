@@ -30,7 +30,7 @@ export const POST = route(async (req) => {
   const saved = await saveFile(`uploads/${id}/original.${ext}`, file);
   const row = (await sql`
     INSERT INTO uploads (id, user_id, conversation_id, original_name, ext, mime, size_bytes, stored_path)
-    VALUES (${id}, ${user.id}, ${conversationId}, ${file.name.slice(0, 500)}, ${ext}, ${file.type || MIME[ext] || null},
+    VALUES (${id}, ${user.id}, ${conversationId}, ${file.name.slice(0, 500)}, ${ext}, ${MIME[ext] || file.type || null},
             ${saved.size}, ${saved.absPath})
     RETURNING id, user_id, conversation_id, original_name, ext, mime, size_bytes, created_at`)[0];
   return json({ upload: row }, 201);

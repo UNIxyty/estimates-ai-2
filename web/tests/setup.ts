@@ -1,9 +1,9 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterAll } from 'vitest';
+import { afterAll, inject } from 'vitest';
 
-process.env.ESTIMATES_DATABASE_URL ||= 'postgresql://estimates:dev@127.0.0.1:5433/estimates';
+process.env.ESTIMATES_DATABASE_URL = inject('dbUrl'); // isolated DB from tests/globalSetup.ts
 process.env.SESSION_SECRET ||= 'test-session-secret-0123456789abcdef';
 process.env.APP_URL ||= 'http://localhost:3000';
 process.env.WORKER_URL ||= 'http://127.0.0.1:9'; // nothing listens: worker calls fail fast

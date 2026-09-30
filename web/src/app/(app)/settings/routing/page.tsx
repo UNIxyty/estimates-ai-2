@@ -48,7 +48,7 @@ export default function RoutingPage() {
     }
   }
 
-  if (!routing || !budget) return <p>Loading…</p>;
+  if (!routing || !budget) return <section><DesignPending /><p>Loading…</p></section>;
   const tiers = ['fast', 'standard', 'advanced'];
   return (
     <section>

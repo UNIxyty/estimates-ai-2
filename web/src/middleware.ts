@@ -11,10 +11,10 @@ export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   if (PUBLIC.some((p) => pathname === p || pathname.startsWith(p + '/'))) return NextResponse.next();
   if (req.cookies.get('est_session')?.value) return NextResponse.next();
-  const url = req.nextUrl.clone();
-  url.pathname = '/login';
-  url.search = pathname && pathname !== '/' ? `?next=${encodeURIComponent(pathname + search)}` : '';
-  return NextResponse.redirect(url);
+  // Relative Location: behind cloudflared / in standalone Docker, nextUrl's host is the bind address
+  // (0.0.0.0 / localhost), not the public hostname.
+  const next = pathname && pathname !== '/' ? `?next=${encodeURIComponent(pathname + search)}` : '';
+  return new NextResponse(null, { status: 307, headers: { Location: `/login${next}` } });
 }
 
 export const config = {

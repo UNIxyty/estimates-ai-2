@@ -126,8 +126,9 @@ Settings: `GET usage?days=30`, `GET|PUT settings/routing` (PUT admin), `GET|PUT 
 `GET /health` · `GET /internal/runs/{run_id}/events?after=N` (SSE) ·
 `GET /internal/view/sheets?kind=file|document&id=` · `GET /internal/view/rows?kind&id&sheet&offset&limit&filter` ·
 `GET /internal/view/html?kind=file&id=` (docx → HTML via mammoth) ·
-`POST /internal/documents/{id}/rows/{sheet}/{row}` (recalculate + write workbook; web has checked ownership) ·
-`POST /internal/files/{id}/recompute` (after a user override).
+`POST /internal/documents/{id}/rows/{sheet}/{row}` (recalculate + write workbook; web has checked ownership).
+User overrides on knowledge files need no worker call: the agent merges `override` / `override_*` columns at read
+time, so an edit is effective on the next run.
 
 ## Pricing a row (worker/app/agent/pricing.py)
 

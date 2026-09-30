@@ -15,6 +15,12 @@ const FILE_LIST_COLS = () => sql`
   f.id, f.original_name, f.ext, f.size_bytes, f.tag, f.status, f.progress, f.fail_reason, f.language,
   f.summary, f.created_at, f.updated_at, f.analysed_at, f.uploaded_by, u.name AS uploaded_by_name`;
 
+/** Server paths stay server-side. */
+export function publicFile<T extends Record<string, unknown>>(row: T) {
+  const { stored_path: _s, work_path: _w, ...rest } = row;
+  return rest;
+}
+
 export async function listFiles() {
   return sql`SELECT ${FILE_LIST_COLS()} FROM files f LEFT JOIN users u ON u.id = f.uploaded_by
               WHERE f.deleted_at IS NULL ORDER BY f.created_at DESC`;
@@ -30,11 +36,11 @@ export async function uploadKnowledgeFile(user: SessionUser, form: FormData) {
   return sql.begin(async (tx) => {
     const row = (await tx`
       INSERT INTO files (id, uploaded_by, original_name, ext, mime, size_bytes, sha256, stored_path, tag, status, progress)
-      VALUES (${id}, ${user.id}, ${file.name.slice(0, 500)}, ${ext}, ${file.type || MIME[ext] || null}, ${saved.size},
+      VALUES (${id}, ${user.id}, ${file.name.slice(0, 500)}, ${ext}, ${MIME[ext] || file.type || null}, ${saved.size},
               ${saved.sha256}, ${saved.absPath}, ${tag.data}, 'queued', 0)
       RETURNING *`)[0];
     await enqueueJob(tx, 'ingest_file', { file_id: id }, { dedupeKey: `ingest:${id}` });
-    return row;
+    return publicFile(row);
   });
 }
 
@@ -64,7 +70,7 @@ export async function fileDetail(viewerId: string, id: string) {
                (SELECT count(*)::int FROM file_sections WHERE file_id = ${id}) AS sections`,
     usedInFor(viewerId, id),
   ]);
-  return { file: f, sheets, sections, logic, notes, counts: counts[0], usedIn };
+  return { file: publicFile(f), sheets, sections, logic, notes, counts: counts[0], usedIn };
 }
 
 /** Only the viewer's own conversations are listed with titles; other people's are just counted. */
@@ -267,7 +273,7 @@ export async function reanalyse(user: SessionUser, fileId: string) {
     if (jobId === null) throw new HttpError(409, 'already_analysing');
     const row = (await tx`UPDATE files SET status = 'queued', progress = 0, fail_reason = NULL, updated_at = now()
                            WHERE id = ${fileId} RETURNING *`)[0];
-    return { file: row, job_id: jobId };
+    return { file: publicFile(row), job_id: jobId };
   });
 }
 
@@ -275,7 +281,7 @@ export async function setTag(user: SessionUser, fileId: string, tag: z.infer<typ
   const file = await visibleFile(fileId);
   assertCanEditFile(user, file);
   const row = (await sql`UPDATE files SET tag = ${tag}, updated_at = now() WHERE id = ${fileId} RETURNING *`)[0];
-  return { file: row };
+  return { file: publicFile(row) };
 }
 
 export async function knowledgeStatus() {

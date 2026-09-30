@@ -46,7 +46,7 @@ export default function ProfilePage() {
     }
   }
 
-  if (!p) return <p>Loading…</p>;
+  if (!p) return <section><DesignPending /><p>Loading…</p></section>;
   return (
     <section>
       <DesignPending />

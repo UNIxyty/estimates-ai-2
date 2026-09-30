@@ -448,7 +448,7 @@ def analyse_sheet(sd: SheetData, *, llm: LLMFn | None = None, tag: str | None = 
         ss.kind = "other"
         return ss
     hdr = find_header(sd)
-    if hdr is None and llm is not None:
+    if hdr is None and llm is not None and _looks_tabular(sd):
         hdr = _llm_header(sd, llm, ss)
     if hdr is None:
         ss.kind = "summary" if _SUMMARY_NAME_RX.search(normalise_text(sd.name)) else "other"
@@ -920,6 +920,19 @@ def _llm_columns(ss: SheetStructure, sd: SheetData, cols: dict[int, _Col], rows:
             cols[c].source = "model"
             cols[c].confidence = float(item.get("confidence") or 0.6)
             taken.add(m)
+
+
+def _looks_tabular(sd: SheetData) -> bool:
+    """Worth asking the model for a header only when there is a real table (>=5 rows with >=3 values and
+    some numbers)."""
+    wide = 0
+    nums = 0
+    for row in sd.rows[:200]:
+        vals = [v for v in row if v is not None]
+        if len(vals) >= 3:
+            wide += 1
+            nums += sum(1 for v in vals if parse_number(v) is not None)
+    return wide >= 5 and nums >= 5
 
 
 _HDR_SCHEMA = {"type": "object", "properties": {"header_row": {"type": ["integer", "null"]}},

@@ -271,6 +271,12 @@ def read_xlsx(path: str) -> DocumentData:
                         sd.formulas[(r_i, c_i)] = t if t.startswith("=") else "=" + t
     finally:
         wb_f.close()
+    for sd in doc.sheets:
+        # styles were recorded for every styled cell; keep them only where there is a value or a formula
+        # (formula cells without a cached value look empty in the values pass)
+        keep = lambda rc, _sd=sd: _sd.get(*rc) is not None or rc in _sd.formulas  # noqa: E731
+        sd.bold = {rc for rc in sd.bold if keep(rc)}
+        sd.number_formats = {rc: f for rc, f in sd.number_formats.items() if keep(rc)}
     _fill_uncached(doc)
     return doc
 
@@ -295,10 +301,11 @@ def _read_values(wb, ws, sd: SheetData) -> None:
             v = getattr(cell, "value", None)
             v = _clean_value(v)
             vals.append(v)
-            if v is None:
-                continue
-            last = c_i
+            if v is not None:
+                last = c_i
             sid = getattr(cell, "_style_id", 0) or 0
+            if v is None and not sid:
+                continue
             st = style_cache.get(sid)
             if st is None:
                 bold, nf = False, "General"
