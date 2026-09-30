@@ -1,0 +1,72 @@
+# Estimates AI Agent — one published port (web), everything else internal.
+#   cp .env.example .env && edit it
+#   ./scripts/check-env.sh              # warns if exported shell vars would shadow .env
+#   BUILD_HASH=$(git rev-parse --short HEAD) docker compose build --no-cache web
+#   docker compose up -d
+#   docker compose run --rm worker python -m app.seed_admin
+name: estimates
+
+x-files: &files
+  - files:/data/files
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    env_file: .env            # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB (no shell interpolation)
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # no ports: reachable only on the compose network
+
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+      args:
+        BUILD_HASH: ${BUILD_HASH:-dev}
+    restart: unless-stopped
+    env_file: .env            # ESTIMATES_DATABASE_URL, AWS_*, BEDROCK_*, RESEND_*, ... (not interpolated)
+    volumes: *files
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: ${WORKER_MEM_LIMIT:-2g}
+    # no ports: web talks to it at http://worker:8000 with X-Internal-Token
+
+  web:
+    build:
+      context: ./web
+      args:
+        BUILD_HASH: ${BUILD_HASH:-dev}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      WORKER_URL: http://worker:8000
+      PORT: "3000"
+    volumes: *files
+    depends_on:
+      worker:
+        condition: service_healthy
+    ports:
+      # The ONLY published port. Bound to localhost by default: your existing cloudflared tunnel
+      # (on the host) points at http://127.0.0.1:${APP_PORT}. Set APP_BIND=0.0.0.0 only if you must.
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:?Set APP_PORT in .env (e.g. 8088)}:3000"
+
+  # Optional: run the tunnel inside compose instead of on the host (docker compose --profile tunnel up -d).
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    env_file: .env            # TUNNEL_TOKEN=...
+    depends_on:
+      - web
+
+volumes:
+  dbdata:
+  files:
