@@ -194,3 +194,42 @@ def test_llm_failure_is_harmless(tmp_path):
         raise RuntimeError("model down")
     ws = analyse_workbook(_ambiguous(tmp_path), llm=boom)
     assert ws.model_calls == 1 and ws.sheets[0].items
+
+
+def test_messy_workbook(tmp_path):
+    """Header below a long title block, hidden rows, numbers stored as text, formatted empty trailing rows."""
+    from openpyxl.styles import Font
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Tāme 2"
+    for i in range(1, 12):
+        ws.cell(row=i, column=1, value=f"Pasūtītājs / objekts / adrese, rinda {i}")
+    hdr = ["Nr.p.k.", "Darbu un materiālu nosaukums", "Mērvienība", "Daudzums", "Vienības cena, EUR",
+           "Kopā, EUR", "Piezīmes"]
+    for c, h in enumerate(hdr, start=1):
+        ws.cell(row=14, column=c, value=h)
+    data = [
+        ("1", "Kabelis NYM 3x2,5", "tek.m", "1 250", "2,10", "2 625,00", ""),
+        ("2", "Kontaktligzda IP44", "gab", "12", "8,50", "102,00", "virsapmetuma"),
+        ("3", "Vecais gaismeklis (neizmanto)", "gab", "3", "10,00", "30,00", ""),
+        ("4", "Automātslēdzis C16 1P", "gab.", "6", "4,20", "25,20", ""),
+    ]
+    for r, row in enumerate(data, start=15):
+        for c, v in enumerate(row, start=1):
+            ws.cell(row=r, column=c, value=v or None)
+    ws.row_dimensions[17].hidden = True
+    ws.cell(row=19, column=2, value="Kopā").font = Font(bold=True)
+    ws.cell(row=19, column=6, value="2 782,20")
+    for r in range(20, 400):                        # formatted but empty
+        ws.cell(row=r, column=6).number_format = "0.00"
+    p = tmp_path / "messy.xlsx"
+    wb.save(p)
+    s = analyse_workbook(str(p)).sheets[0]
+    assert s.header_row == 14 and s.first_data_row == 15
+    cols = {c.letter: c.meaning for c in s.columns}
+    assert cols == {"A": "no", "B": "item", "C": "unit", "D": "qty", "E": "unit_total", "F": "total", "G": "notes"}
+    items = s.items
+    assert [r.row for r in items] == [15, 16, 17, 18]
+    assert items[0].qty == 1250 and items[0].values["unit_total"] == 2.1 and items[0].values["total"] == 2625
+    assert items[2].hidden is True
+    assert s.last_data_row == 19 and s.rows[-1].kind == "total"

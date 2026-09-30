@@ -259,3 +259,12 @@ def test_xls_work_path(database, user, files, tmp_path):
 
 def test_deleted_or_missing_file_is_noop(database):
     assert pipeline.ingest_file({"file_id": str(uuid.uuid4())}) is None
+
+
+def test_docx_price_list(database, user, files, tmp_path):
+    fid = _file(user, files["docx"], tmp_path, tag="price_list")
+    pipeline.ingest_file({"file_id": fid})
+    f = db.fetchone("SELECT status, language, summary FROM files WHERE id=%s", (fid,))
+    assert f["status"] == "analysed" and f["language"] == "LV" and f["summary"]["item_count"] == 3
+    r = db.fetchone("SELECT * FROM price_items WHERE file_id=%s ORDER BY row_idx LIMIT 1", (fid,))
+    assert float(r["unit_material"]) == 1.65 and r["attrs"]["combined_price"] is True
