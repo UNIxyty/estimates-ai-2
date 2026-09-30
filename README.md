@@ -82,7 +82,18 @@ advisory lock.
 
 ## Resources
 
-<!-- filled in from measurements -->
+Measured in the build sandbox (deterministic path, no model calls):
+
+| Workload | Time | Peak RSS (worker process) |
+|---|---|---|
+| Parse + analyse a 5,000-row × 15-col workbook | ≈2.3 s | 58 MB |
+| Parse + analyse a 20,000-row × 15-col workbook | ≈9.2 s | 129 MB |
+| Ingest a 5,000-row reference **and** fill a 5,000-row blank in one process | 2.4 s + 9.9 s | 146 MB |
+| DocViewer: first conversion of a 5,000-row sheet / page of 200 rows | ≈2.2 s / ≈6 ms | — |
+
+`.xls` conversion (LibreOffice headless) adds roughly 200–300 MB per conversion while it runs. I couldn't measure
+that here because the sandbox blocks the Debian mirror. With `WORKER_CONCURRENCY=3`, give the worker **at least
+1 GB**. The compose default is `WORKER_MEM_LIMIT=2g`, which leaves headroom for large `.xls` files.
 
 ## Tests
 

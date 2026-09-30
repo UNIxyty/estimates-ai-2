@@ -78,7 +78,7 @@ def test_text_deltas_are_coalesced():
     for ch in "coalesce me please " * 20:
         em.text_delta("m1", ch)
     em.flush()
-    rows = db.fetchall("SELECT payload FROM run_events WHERE run_id=%s AND type='text.delta'", (run["id"],))
+    rows = db.fetchall("SELECT payload FROM run_events WHERE run_id=%s AND type='text.delta' ORDER BY seq", (run["id"],))
     assert "".join(r["payload"]["delta"] for r in rows) == "coalesce me please " * 20
     assert len(rows) < 20
 

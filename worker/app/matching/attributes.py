@@ -10,7 +10,7 @@ import re
 from functools import lru_cache
 from typing import Any
 
-from .text import fold_diacritics, normalise_text
+from .text import normalise_text
 
 CATEGORIES = (
     "cable", "cable_tray", "conduit", "socket", "switch", "luminaire", "distribution_board", "breaker", "rcd",
@@ -221,7 +221,6 @@ def _num(v: float) -> float | int:
 def _parse(text: str) -> tuple[tuple[str, Any], ...]:
     raw = str(text)
     n = normalise_text(raw)
-    low = fold_diacritics(raw.lower()).replace(",", ".")
     out: dict[str, Any] = {}
     cat = detect_category(raw)
 

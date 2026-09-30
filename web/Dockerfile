@@ -31,6 +31,7 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0 \
     DATA_DIR=/data/files
+# uid/gid 1001 must match the worker image (shared /data/files volume).
 RUN addgroup -S -g 1001 app && adduser -S -u 1001 -G app app \
  && mkdir -p /data/files && chown -R app:app /data
 COPY --from=build --chown=app:app /app/.next/standalone ./

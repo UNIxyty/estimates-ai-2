@@ -18,7 +18,9 @@ COPY db/migrations /app/db/migrations
 ARG BUILD_HASH=dev
 ENV BUILD_HASH=${BUILD_HASH}
 
-RUN useradd --system --uid 10001 --home /tmp app && mkdir -p /data/files && chown -R app /data/files
+# Same uid/gid (1001) as the web image: both write to the shared /data/files volume.
+RUN groupadd --system --gid 1001 app && useradd --system --uid 1001 --gid 1001 --home /tmp app \
+ && mkdir -p /data/files && chown -R app:app /data/files
 USER app
 EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=5 \

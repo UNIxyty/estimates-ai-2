@@ -55,7 +55,7 @@ def test_why_is_row_expensive_uses_stored_provenance_and_emits_chips():
                     "label": "Row 58"}
     assert msg["tier"] == "advanced"  # "why" + existing document → complex_reasoning
     assert float(msg["cost_usd"]) > 0 and msg["tokens"]["input"] == 2000
-    streamed = db.fetchall("SELECT payload FROM run_events WHERE run_id=%s AND type='text.delta'", (run["id"],))
+    streamed = db.fetchall("SELECT payload FROM run_events WHERE run_id=%s AND type='text.delta' ORDER BY seq", (run["id"],))
     assert "".join(e["payload"]["delta"] for e in streamed).startswith("[[row:Elektro!58]] costs 590")
 
 
