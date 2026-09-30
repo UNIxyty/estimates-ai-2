@@ -142,7 +142,13 @@ def _build_patterns() -> None:
 
 
 _build_patterns()
-_CAT_BIG = re.compile("|".join(f"(?P<g{i}>{p.pattern})" for i, (_, _, p) in enumerate(_CAT_PATTERNS)))
+# One alternation, longest keywords first: `search` returns the leftmost match and, at that position,
+# the longest keyword (Python tries alternatives in order) - i.e. exactly the resolution rule above.
+_KW_TO_CAT: dict[str, str] = {}
+for _len, _cat, _pat in sorted(_CAT_PATTERNS, key=lambda x: -x[0]):
+    _KW_TO_CAT.setdefault(_pat.pattern[len("(?<![\\w])"):], _cat)
+_CAT_BIG = re.compile(r"(?<![\w])(" + "|".join(sorted(_KW_TO_CAT, key=len, reverse=True)) + ")")
+_KW_LOOKUP = {re.sub(r"\\(.)", r"\1", k): v for k, v in _KW_TO_CAT.items()}
 
 
 @lru_cache(maxsize=65536)
@@ -151,15 +157,10 @@ def detect_category(text: str | None) -> str | None:
     n = normalise_text(text)
     if not n:
         return None
-    best: tuple[int, int, str] | None = None   # (start, -len, cat)
-    for length, cat, pat in _CAT_PATTERNS:
-        m = pat.search(n)
-        if m is None:
-            continue
-        key = (m.start(), -length, cat)
-        if best is None or key < best:
-            best = key
-    return best[2] if best else None
+    m = _CAT_BIG.search(n)
+    if m is None:
+        return None
+    return _KW_LOOKUP.get(m.group(1))
 
 
 # ------------------------------------------------------------------ numeric attributes
