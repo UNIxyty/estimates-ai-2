@@ -11,6 +11,7 @@ import type { ViewerLayoutProps } from './ViewerLayout';
 import type { DocRef } from './types';
 import { DocViewer } from './DocViewer';
 import s from './Viewer.module.css';
+import { BrandLogo } from '@/components/Brand';
 
 const MIN = 0.26, MAX = 0.7;
 
@@ -76,7 +77,7 @@ export function ViewerLayout({ viewer, children, onAsk, renderAsk, railLabel = '
 
       {full && (
         <div key="rail" style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: 64, zIndex: 45, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '12px 0', borderRight: '1px solid var(--line)', background: 'var(--side)' }}>
-          <span aria-hidden style={{ width: 28, height: 28, borderRadius: 7, background: 'var(--acc)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 600 }}>E</span>
+          <BrandLogo size={16} style={{ padding: '6px 0' }} />
           <button type="button" onClick={() => viewer.setMode('split')} title="Back to split view" className={s.ghost}
             style={{ width: 48, padding: '8px 0', border: 0, borderRadius: 10, background: 'transparent', color: 'var(--ink2)', font: 'inherit', fontSize: 11, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
             <span style={{ fontSize: 15 }}>‹</span>{railLabel}

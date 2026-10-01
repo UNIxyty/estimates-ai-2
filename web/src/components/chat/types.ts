@@ -67,6 +67,10 @@ export interface LiveRun {
   stepOrder: string[];
   cost?: number;
   connection: 'connecting' | 'open' | 'closed' | 'error' | 'none';
+  /** Live `agent.state` (thinking / searching); cleared on idle and when the run stops. */
+  activity?: { state: string; tier?: string; task?: string; query?: string; since: number };
+  /** While queued: GET /api/runs/{id}/queue. */
+  queue?: { ahead: number; running: number };
   created_at?: string;
   started_at?: string | null;
   finished_at?: string | null;

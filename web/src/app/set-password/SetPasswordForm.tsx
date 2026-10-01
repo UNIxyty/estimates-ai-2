@@ -105,7 +105,7 @@ export function SetPasswordForm() {
   const isReset = kind === 'reset';
   const sub = isReset
     ? 'Your old password stops working once you save the new one.'
-    : `${inviter ? `${inviter} invited you` : 'You were invited'} to Estimates AI Agent. Set a password to finish creating your account.`;
+    : `${inviter ? `${inviter} invited you` : 'You were invited'} to MGS Estimates AI. Set a password to finish creating your account.`;
   const pwField = (label: string, value: string, set: (v: string) => void, id: string) => (
     <label style={authLabel} htmlFor={id}>
       {label}
@@ -127,7 +127,7 @@ export function SetPasswordForm() {
   return (
     <AuthFrame cardMaxWidth={420}>
       <form onSubmit={submit} noValidate style={{ display: 'contents' }}>
-        <AuthHeading gap={6} title={isReset ? 'Choose a new password' : 'Welcome to Estimates AI Agent'} sub={sub} />
+        <AuthHeading gap={6} title={isReset ? 'Choose a new password' : 'Welcome to MGS Estimates AI'} sub={sub} />
         <label style={authLabel}>
           Email
           <input

@@ -8,6 +8,7 @@ import { InlineCard } from './InlineCard';
 import { partsToParas, RichText, streamingParts } from './Blocks';
 import type { Card, ChatMessage, FileRef, Part, UploadRef } from './types';
 import { uploadRole } from './Composer';
+import css from './Chat.module.css';
 
 export function UserMessage({ m, uploads, references }: { m: ChatMessage; uploads: Record<string, UploadRef>; references: Record<string, FileRef> }) {
   const { openUpload, openFile } = useChat();
@@ -55,7 +56,7 @@ function plainText(parts: Part[]): string {
     .join('\n\n');
 }
 
-export function AgentMessage({ m, cards, steps, latestDocId, onRetry, showFooter = true }: {
+export function AgentMessage({ m, cards, steps, latestDocId, onRetry, showFooter = true, quiet }: {
   m: ChatMessage;
   cards: Card[];
   /** The working-steps block of this message's run segment, if any. */
@@ -63,6 +64,8 @@ export function AgentMessage({ m, cards, steps, latestDocId, onRetry, showFooter
   latestDocId?: string;
   onRetry?: () => void;
   showFooter?: boolean;
+  /** The run's live activity line is showing (thinking / searching): no extra "Writing…" placeholder. */
+  quiet?: boolean;
 }) {
   const { files } = useChat();
   const [copied, setCopied] = useState(false);
@@ -76,9 +79,11 @@ export function AgentMessage({ m, cards, steps, latestDocId, onRetry, showFooter
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, fontSize: 15, lineHeight: 1.65, minWidth: 0 }}>
       {steps}
-      {hasText && <RichText parts={textParts} />}
-      {m.streaming && !hasText && !steps && (
-        <span aria-label="The agent is writing" style={{ color: 'var(--ink3)', fontSize: 20, lineHeight: 1, letterSpacing: 2, animation: 'pulse 1.2s ease-in-out infinite' }}>•••</span>
+      {hasText && (m.streaming ? <div className={css.streaming} aria-busy="true"><RichText parts={textParts} /></div> : <RichText parts={textParts} />)}
+      {m.streaming && !hasText && !steps && !quiet && (
+        <span role="status" aria-label="The agent is writing" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 13.5 }}>
+          <span className={css.dots} aria-hidden><i /><i /><i /></span><span className={css.shimmer} style={{ fontWeight: 500 }}>Writing…</span>
+        </span>
       )}
       {cards.map((c) => <InlineCard key={c.id} card={c} />)}
       {showFooter && !m.streaming && (hasText || cards.length > 0) && (

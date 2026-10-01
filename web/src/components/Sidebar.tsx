@@ -8,6 +8,7 @@ import { api } from '@/lib/client';
 import { currentTheme, setThemePref } from '@/lib/theme';
 import { useUser } from './UserContext';
 import { initials, MONO } from './ui';
+import { Brand } from './Brand';
 
 interface Conv { id: string; title: string; last_activity_at: string; last_run_status: string | null; language: string | null }
 const BUSY = new Set(['queued', 'running', 'waiting', 'paused_cost']);
@@ -96,8 +97,7 @@ export function Sidebar({ mobile, open, onClose, collapsedOverride, reloadKey }:
         <div style={{ height: 56, flex: 'none', display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px 0 14px' }}>
           {!collapsed && (
             <Link href="/chat" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'var(--ink)', flex: 1, minWidth: 0 }}>
-              <span style={{ width: 24, height: 24, flex: 'none', borderRadius: 6, background: 'var(--acc)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: MONO, fontSize: 12, fontWeight: 600 }}>E</span>
-              <span style={{ fontWeight: 600, fontSize: 14.5, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>Estimates AI Agent</span>
+              <Brand variant="topbar" />
             </Link>
           )}
           <button type="button" onClick={toggle} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} className="hv-sunk"

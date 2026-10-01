@@ -137,7 +137,7 @@ export function useConversation(conversationId: string, opts: { onRunEnd?: () =>
       es.onerror = () => patchRun(runId, (r) => ({ ...r, connection: TERMINAL.includes(r.status) ? 'closed' : 'error' }));
       es.addEventListener('run.status', (e) => {
         const p = data(e);
-        patchRun(runId, (r) => ({ ...r, status: p.status, error: p.error }));
+        patchRun(runId, (r) => ({ ...r, status: p.status, error: p.error, activity: p.status === 'running' ? r.activity : undefined }));
         if (TERMINAL.includes(p.status)) {
           // The stream itself ends with an `end` event once the run is terminal and fully sent (a replayed
           // old status does not close it: the run may have been resumed since).
@@ -146,6 +146,14 @@ export function useConversation(conversationId: string, opts: { onRunEnd?: () =>
         } else delete expectUntil.current[runId];
       });
       es.addEventListener('end', () => close());
+      es.addEventListener('agent.state', (e) => {
+        const p = data(e);
+        patchRun(runId, (r) => ({
+          ...r,
+          activity: !p.state || p.state === 'idle' ? undefined
+            : { state: p.state, tier: p.tier, task: p.task, query: p.query, since: r.activity && r.activity.state === p.state ? r.activity.since : Date.now() },
+        }));
+      });
       for (const t of ['step.started', 'step.progress', 'step.done', 'step.warn'])
         es.addEventListener(t, (e) => {
           const p = data(e);
@@ -183,6 +191,24 @@ export function useConversation(conversationId: string, opts: { onRunEnd?: () =>
     },
     [load, patchRun, upsertCard, upsertMessage],
   );
+
+  // While a run waits for the worker, show where it is in the queue.
+  const queuedIds = Object.values(runs).filter((r) => r.status === 'queued').map((r) => r.id).sort().join(',');
+  useEffect(() => {
+    if (!queuedIds) return;
+    let alive = true;
+    const poll = async () => {
+      for (const id of queuedIds.split(',')) {
+        try {
+          const q = await api<{ status: string; ahead: number; running: number }>(`/api/runs/${id}/queue`);
+          if (alive) patchRun(id, (r) => ({ ...r, queue: { ahead: q.ahead, running: q.running }, status: r.status === 'queued' && q.status !== 'queued' ? q.status : r.status }));
+        } catch {}
+      }
+    };
+    poll();
+    const t = setInterval(poll, 2500);
+    return () => { alive = false; clearInterval(t); };
+  }, [queuedIds, patchRun]);
 
   useEffect(() => {
     load().then((d) => {

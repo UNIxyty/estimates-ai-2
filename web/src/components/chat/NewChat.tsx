@@ -18,6 +18,7 @@ import { Composer, loadPicker, type ComposerChip, type ComposerHandle } from './
 import { postChatMessage, sendErrorText } from './send';
 import type { FileRef } from './types';
 import s from './Chat.module.css';
+import { BrandLogo } from '@/components/Brand';
 
 interface KStatus { chatUnlocked: boolean; counts: { total: number; byStatus: Record<string, number> } }
 
@@ -108,7 +109,7 @@ export function NewChat() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '32px 20px 48px' }}>
           <div style={{ width: '100%', maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center' }}>
-              <span style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--acc)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: MONO, fontSize: 18, fontWeight: 600 }}>E</span>
+              <BrandLogo size={30} />
               <h1 style={{ margin: '8px 0 0', fontSize: 30, fontWeight: 500, letterSpacing: '-0.02em' }}>{hello}, {first}</h1>
               <div style={{ fontSize: 16, color: 'var(--ink2)' }}>What are we estimating today?</div>
             </div>

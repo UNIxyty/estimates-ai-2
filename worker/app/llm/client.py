@@ -295,6 +295,21 @@ def _call(model_id: str, system_blocks: list[dict], messages: list[dict], tool_c
     return content, stop_reason, usage
 
 
+TIER_LABEL = {"fast": "Fast", "standard": "Standard", "advanced": "Advanced"}
+
+
+def agent_state(ctx: Ctx | None, state: str, **extra: Any) -> None:
+    """Tell the chat what the agent is doing right now (thinking / searching / idle): an `agent.state` run event.
+    Best effort: a failed emit must never affect the call itself."""
+    if not ctx or not ctx.run_id:
+        return
+    try:
+        from ..agent.events import append_event
+        append_event(ctx.run_id, "agent.state", {"state": state, **extra})
+    except Exception:  # noqa: BLE001
+        log.debug("agent.state emit failed", exc_info=True)
+
+
 def converse(*, task: str, messages: list[dict], ctx: Ctx, system: str | list[str] | None = None,
              tools: list[dict] | None = None, max_tokens: int = 4096, forced_tier: str | None = None,
              on_text: Callable[[str], None] | None = None,
@@ -314,7 +329,11 @@ def converse(*, task: str, messages: list[dict], ctx: Ctx, system: str | list[st
     def attempt(tier: str, model_id: str, escalated_from: str | None,
                 text_cb: Callable[[str], None] | None) -> LLMResult:
         _check_cap(ctx, model_id, approx, max_tokens)
-        content, stop, usage = _call(model_id, sys_blocks, messages, tool_cfg, max_tokens, text_cb, should_stop)
+        agent_state(ctx, "thinking", task=task, tier=TIER_LABEL.get(tier, tier))
+        try:
+            content, stop, usage = _call(model_id, sys_blocks, messages, tool_cfg, max_tokens, text_cb, should_stop)
+        finally:
+            agent_state(ctx, "idle")
         cost = ledger.record(ctx=ctx, kind="llm", task=task, tier=tier, model_id=model_id, usage=usage,
                              escalated_from=escalated_from,
                              meta={**(meta or {}), "stop_reason": stop,

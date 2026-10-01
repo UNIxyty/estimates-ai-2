@@ -137,22 +137,32 @@ def run(rc: RunContext, question: str, task: str) -> None:
     final_text = ""
     ctx = rc.ctx_for(mid)
 
+    streamed = {"any": False, "sep": False}
+
     def on_text(delta: str) -> None:
         if UNSURE not in delta:
+            if streamed["sep"] and delta.strip():
+                rc.emitter.text_delta(mid, "\n\n")  # a new tool round starts a new paragraph (live, too)
+                streamed["sep"] = False
             rc.emitter.text_delta(mid, delta)
+            streamed["any"] = streamed["any"] or bool(delta.strip())
 
     for _ in range(MAX_TURNS):
         rc.check()
+        streamed["sep"] = streamed["any"]
         res = llm.converse(task=task, messages=messages, ctx=ctx, system=system, tools=specs, max_tokens=4096,
                            forced_tier=rc.forced_tier, on_text=on_text, should_stop=rc.should_stop,
                            unsure=(lambda r: UNSURE in r.text) if route.tier == "fast" else None)
         messages.append({"role": "assistant", "content": res.content})
-        final_text += res.text.replace(UNSURE, "")
+        piece = res.text.replace(UNSURE, "")
+        if piece and final_text and not final_text.endswith(("\n", " ")) and not piece.startswith(("\n", " ")):
+            piece = "\n\n" + piece  # text from successive tool rounds: separate paragraphs, not "costs.Based"
+        final_text += piece
         if res.stop_reason != "tool_use" or not res.tool_uses:
             break
         results = []
         for tu in res.tool_uses:
-            rc.emitter.step_started(f"tool:{tu['id']}", tu["name"].replace("_", " "))
+            rc.emitter.step_started(f"tool:{tu['id']}", tools.tool_label(tu["name"], tu.get("input")))
             out, is_err = tools.call(rc, tu["name"], tu["input"], message_id=mid)
             rc.emitter.step_done(f"tool:{tu['id']}", "error" if is_err else None)
             block = {"toolUseId": tu["id"], "content": [{"json": out}]}

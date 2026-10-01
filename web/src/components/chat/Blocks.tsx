@@ -137,7 +137,7 @@ export function fmtElapsed(ms: number): string {
   return `${Math.floor(sec / 60)} min ${String(sec % 60).padStart(2, '0')} s`;
 }
 
-function SpinnerRing({ size = 16 }: { size?: number }) {
+export function SpinnerRing({ size = 16 }: { size?: number }) {
   return <span aria-hidden style={{ width: size, height: size, flex: 'none', borderRadius: '50%', border: '2px solid var(--accSoft)', borderTopColor: 'var(--acc)', animation: 'spin .8s linear infinite', boxSizing: 'border-box' }} />;
 }
 
@@ -155,7 +155,10 @@ export function StepsBlock({ steps, status, startedAt, endedAt, onStop, docId }:
   }, [live]);
   const isOpen = open ?? status !== 'done';
   const n = steps.length;
-  const title = status === 'running' ? 'Working…' : status === 'waiting' ? 'Paused: waiting for your answer'
+  // While running, the header names the step in progress (with its counter) instead of a generic "Working…".
+  const current = live ? [...steps].reverse().find((x) => x.state === 'running') : undefined;
+  const title = status === 'running' ? (current ? `${current.label || 'Working'}${current.total ? ` · ${fmtInt(current.done ?? 0)} / ${fmtInt(current.total)}` : '…'}` : 'Working…')
+    : status === 'waiting' ? 'Paused: waiting for your answer'
     : status === 'cancelled' ? `Stopped after ${n} step${n === 1 ? '' : 's'}` : status === 'failed' ? `Failed after ${n} step${n === 1 ? '' : 's'}`
     : `Finished ${n} step${n === 1 ? '' : 's'}`;
   const elapsed = fmtElapsed((live ? Math.max(now, endedAt ?? 0) : endedAt ?? startedAt) - startedAt);
@@ -168,7 +171,7 @@ export function StepsBlock({ steps, status, startedAt, endedAt, onStop, docId }:
         {status === 'done' && <span style={{ width: 16, height: 16, flex: 'none', borderRadius: '50%', background: 'var(--ok)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9 }}>✓</span>}
         {status === 'waiting' && <span style={{ width: 16, height: 16, flex: 'none', borderRadius: '50%', border: '2px solid var(--warn)', boxSizing: 'border-box' }} />}
         {(status === 'cancelled' || status === 'failed') && <span style={{ width: 16, height: 16, flex: 'none', borderRadius: '50%', background: status === 'failed' ? 'var(--err)' : 'var(--ink3)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700 }}>{status === 'failed' ? '!' : '■'}</span>}
-        <span style={{ fontWeight: 500 }}>{title}</span>
+        <span className={live ? s.shimmer : undefined} style={{ fontWeight: 500, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
         <span style={{ color: 'var(--ink3)', fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>{elapsed}</span>
         <span style={{ marginLeft: 'auto', color: 'var(--ink3)', fontSize: 12.5, whiteSpace: 'nowrap' }}>{isOpen ? 'Hide steps' : 'Show steps'}</span>
       </button>

@@ -12,6 +12,7 @@ import { useUser } from '@/components/UserContext';
 import { useShell } from '@/components/Shell';
 import { fmtBytes, fmtInt, KindIcon, LangTag } from '@/components/ui';
 import { DeleteFileModal } from './DeleteFileModal';
+import { Brand } from '@/components/Brand';
 import {
   ACCEPT, guessTag, isBusy, STATUS_FG, statusLabel, TAGS, tagLabel, uploadError, uploadFile, useFiles,
   type FileRow, type FileTag,
@@ -101,8 +102,7 @@ export function SetupView() {
     <main style={{ flex: 1, minWidth: 0, overflow: 'auto', background: 'var(--bg)', color: 'var(--ink)' }}>
       <header style={{ height: 60, flex: 'none', display: 'flex', alignItems: 'center', gap: 10, padding: mobile ? '0 16px' : '0 24px', borderBottom: '1px solid var(--line)', background: 'var(--panel)' }}>
         <Link href="/chat" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'var(--ink)' }}>
-          <span style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--acc)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 600 }}>E</span>
-          <span style={{ fontWeight: 600, fontSize: 15 }}>Estimates AI Agent</span>
+          <Brand variant="topbar" />
         </Link>
         <span style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--ink3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>Signed in as {user.email}</span>
       </header>

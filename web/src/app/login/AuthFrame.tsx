@@ -1,14 +1,12 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { BuildFooter } from '@/components/BuildFooter';
+import { Brand } from '@/components/Brand';
 
 /** Signed-out page chrome shared by /login and /set-password (design/login.dc.html, set-password.dc.html). */
 export function AuthFrame({ children, cardMaxWidth = 400, note }: { children: ReactNode; cardMaxWidth?: number; note?: ReactNode }) {
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 28, padding: '32px 20px 44px', background: 'var(--bg)', color: 'var(--ink)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span aria-hidden style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--acc)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 600 }}>E</span>
-        <span style={{ fontWeight: 600, fontSize: 17, letterSpacing: '-0.01em' }}>Estimates AI Agent</span>
-      </div>
+      <Brand variant="login" />
       <main style={{ width: '100%', maxWidth: cardMaxWidth, display: 'flex', flexDirection: 'column', gap: 18, padding: 28, border: '1px solid var(--line)', borderRadius: 16, background: 'var(--panel)', boxShadow: '0 1px 2px rgba(16,24,40,0.04),0 12px 32px rgba(16,24,40,0.06)' }}>
         {children}
       </main>

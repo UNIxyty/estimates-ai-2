@@ -9,7 +9,7 @@ import '@fontsource/ibm-plex-mono/600.css';
 import '@/styles/tokens.css';
 
 export const metadata: Metadata = {
-  title: 'Estimates AI Agent',
+  title: 'MGS Estimates AI',
   description: 'Invite-only electrical estimating assistant',
   robots: { index: false, follow: false },
 };

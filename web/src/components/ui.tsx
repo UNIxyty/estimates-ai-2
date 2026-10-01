@@ -28,11 +28,13 @@ const STATUS_TONE: Record<string, Tone> = {
 export function statusTone(status: string): Tone {
   return STATUS_TONE[status.toLowerCase()] ?? 'mute';
 }
+const LIVE_STATUSES = new Set(['queued', 'reading', 'analysing', 'in progress', 'running', 'sending', 'uploading']);
 export function StatusBadge({ label, tone, style }: { label: string; tone?: Tone; style?: CSSProperties }) {
   const [fg, bg] = TONE[tone ?? statusTone(label)];
+  const live = LIVE_STATUSES.has(label.toLowerCase().replace(/\s*·.*$/, '').trim());
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 22, padding: '0 8px', borderRadius: 11, fontSize: 12, fontWeight: 500, color: fg, background: bg, whiteSpace: 'nowrap', ...style }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', flex: 'none' }} />
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', flex: 'none', animation: live ? 'pulse 1.2s ease-in-out infinite' : undefined }} />
       {label}
     </span>
   );

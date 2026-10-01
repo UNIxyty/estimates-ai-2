@@ -18,6 +18,7 @@ import { ChatContext, type ChatCtx } from './context';
 import { AgentMessage, UserMessage } from './Message';
 import { StepsBlock, type StepsStatus } from './Blocks';
 import { postChatMessage, sendErrorText } from './send';
+import { AgentActivity } from './Activity';
 import { BLOCKING, TERMINAL, type Card, type ChatMessage, type FileRef, type LiveRun, type Step } from './types';
 import { useConversation } from './useConversation';
 
@@ -192,6 +193,7 @@ export function ChatView({ conversationId }: { conversationId: string }) {
       items.push({
         at: m.created_at, order: 2,
         node: <AgentMessage key={m.id} m={m} cards={cardsFor.out[m.id] || []} steps={stepsNode(segments.byMessage[m.id])} latestDocId={latestDocId}
+          quiet={!!(m.run_id && runs[m.run_id]?.activity)}
           onRetry={m.run_id ? () => retry(m.run_id) : undefined} />,
       });
   }
@@ -201,10 +203,16 @@ export function ChatView({ conversationId }: { conversationId: string }) {
   }
   for (const c of cardsFor.orphans)
     items.push({ at: c.created_at, order: 2, node: <AgentMessage key={`card-${c.id}`} m={{ id: c.id, run_id: c.run_id, role: 'assistant', content: '', parts: [], created_at: c.created_at }} cards={[c]} showFooter={false} /> });
-  // A run that is queued / starting and has shown nothing yet: a quiet "working" line.
+  // What an active run is doing right now: in queue / starting / thinking / searching (live element, last in the
+  // thread). A run that has shown nothing yet gets it alone; a run with steps gets it only while thinking or
+  // searching, and not while its answer is already streaming (the caret shows that).
   for (const r of Object.values(runs)) {
-    if (!BLOCKING.includes(r.status) || r.stepOrder.length || sorted.some((m) => m.role === 'assistant' && m.run_id === r.id)) continue;
-    items.push({ at: r.created_at || new Date().toISOString(), order: 1, node: <StepsBlock key={`q-${r.id}`} steps={[]} status="running" startedAt={Date.parse(r.created_at || '') || Date.now()} onStop={() => conv.stop(r.id)} /> });
+    if (!BLOCKING.includes(r.status)) continue;
+    const shown = r.stepOrder.length > 0 || sorted.some((m) => m.role === 'assistant' && m.run_id === r.id);
+    const streaming = sorted.some((m) => m.run_id === r.id && m.streaming && (m.content || '').length > 0);
+    if (shown && (streaming || !r.activity)) continue;
+    items.push({ at: '9999-12-31T23:59:59.999Z', order: 9,
+      node: <AgentActivity key={`act-${r.id}`} run={r} showStarting={!shown} onStop={shown ? undefined : () => conv.stop(r.id)} /> });
   }
   // A failed run says so (with Retry on its answer, or here when it produced none).
   for (const r of Object.values(runs)) {

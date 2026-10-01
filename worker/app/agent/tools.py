@@ -277,6 +277,29 @@ FUNCS: dict[str, Callable[..., dict]] = {
     "propose_structure": propose_structure, "write_estimate": write_estimate,
 }
 
+# What the chat shows while a tool runs (the step label), in plain English.
+TOOL_LABELS: dict[str, str] = {
+    "list_allowed_files": "Checking which files I may use", "read_file_summary": "Reading a reference file",
+    "search_items": "Searching your price lists and references", "get_norm": "Looking up an hourly norm",
+    "price_rows_batch": "Pricing rows", "request_file_permission": "Asking to use another file",
+    "web_search_price": "Searching supplier sites", "ask_clarifying_questions": "Preparing questions for you",
+    "get_row_provenance": "Checking where a row's price came from", "update_row": "Updating a row",
+    "send_email": "Sending the estimate by email", "propose_structure": "Planning the estimate structure",
+    "write_estimate": "Writing the estimate workbook",
+}
+
+
+def tool_label(name: str, inp: dict | None = None) -> str:
+    base = TOOL_LABELS.get(name, name.replace("_", " ").capitalize())
+    inp = inp or {}
+    detail = inp.get("query") or inp.get("text") or ((f"{inp.get('sheet')} · row {inp.get('row')}")
+                                                     if inp.get("sheet") and inp.get("row") else None)
+    if detail:
+        d = str(detail)
+        return f"{base} · {d[:60]}{'…' if len(d) > 60 else ''}"
+    return base
+
+
 QA_TOOLS = ["list_allowed_files", "read_file_summary", "search_items", "get_norm", "price_rows_batch",
             "request_file_permission", "web_search_price", "ask_clarifying_questions", "get_row_provenance",
             "update_row", "send_email"]

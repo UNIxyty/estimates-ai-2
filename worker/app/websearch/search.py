@@ -269,6 +269,17 @@ def extract_price(html: str) -> dict | None:
 
 def find_price(query: str, *, ctx: Ctx, must_tokens: set[str] | None = None,
                row_text: str | None = None) -> dict | None:
+    """See _find_price. Tells the chat the agent is searching (agent.state) while it runs."""
+    from ..llm.client import agent_state
+    agent_state(ctx, "searching", query=query[:120], suppliers=sorted(allowed_domains()))
+    try:
+        return _find_price(query, ctx=ctx, must_tokens=must_tokens, row_text=row_text)
+    finally:
+        agent_state(ctx, "idle")
+
+
+def _find_price(query: str, *, ctx: Ctx, must_tokens: set[str] | None = None,
+                row_text: str | None = None) -> dict | None:
     """Search the allowlisted suppliers, fetch up to 3 allowed pages, return the first EUR price whose product
     shares the query's key tokens and passes the attribute filter for `row_text`.
     Returns {product, unit_price, currency, url, domain, country, fetched_at} or None."""

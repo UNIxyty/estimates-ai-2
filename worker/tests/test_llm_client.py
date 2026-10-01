@@ -175,3 +175,22 @@ def test_access_denied_disables_only_that_model_for_a_while(monkeypatch):
     assert standard in llm.unavailable_models()
     monkeypatch.setattr(llm.time, "monotonic", lambda: 10**12)              # after the TTL it is retried
     assert llm.model_unavailable_reason(standard) is None
+
+
+def test_model_call_in_a_run_emits_thinking_then_idle():
+    llm.set_bedrock_factory(lambda: fx.FakeBedrock([fx.text_response("ok")]))
+    run, conv, u = _run()
+    ctx = Ctx(user_id=str(u["id"]), conversation_id=str(conv["id"]), run_id=str(run["id"]))
+    llm.converse(task="fill_blank", messages=[{"role": "user", "content": [{"text": "hi"}]}], ctx=ctx)
+    ev = db.fetchall("SELECT payload FROM run_events WHERE run_id=%s AND type='agent.state' ORDER BY seq", (run["id"],))
+    assert [e["payload"]["state"] for e in ev] == ["thinking", "idle"]
+    assert ev[0]["payload"]["tier"] == "Standard" and ev[0]["payload"]["task"] == "fill_blank"
+
+
+def test_web_lookup_in_a_run_emits_searching_then_idle(monkeypatch):
+    from app.websearch import search
+    monkeypatch.setattr(search, "_find_price", lambda *a, **k: None)
+    run, conv, u = _run()
+    search.find_price("Kabelis NYM 3x2,5 cena", ctx=Ctx(run_id=str(run["id"])))
+    ev = db.fetchall("SELECT payload FROM run_events WHERE run_id=%s AND type='agent.state' ORDER BY seq", (run["id"],))
+    assert [e["payload"]["state"] for e in ev] == ["searching", "idle"] and "NYM" in ev[0]["payload"]["query"]
