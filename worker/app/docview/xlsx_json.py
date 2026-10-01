@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
 MODEL_VERSION = 1
 MAX_LIMIT = 500
 MAX_MATCHES = 500
-FILTERS = ("all", "web", "check", "no_price", "edited", "flagged")
+FILTERS = ("all", "web", "check", "no_price", "edited", "flagged", "attention")
 KINDS = ("item", "section", "subtotal", "total", "header", "note", "blank")
 
 # ------------------------------------------------------------------ colours
@@ -537,8 +537,17 @@ def load(path: str) -> Workbook:
                               cache.gzip_json_dump, cache.gzip_json_load, Workbook)
 
 
+OUTLINE_KINDS = ("header", "section", "subtotal", "total")
+MAX_OUTLINE = 2000
+
+
 def sheet_meta(sheet: dict) -> dict:
-    return {k: v for k, v in sheet.items() if k != "rows"}
+    meta = {k: v for k, v in sheet.items() if k != "rows"}
+    # Structural rows (header / section / subtotal / total) with their cells, so the viewer can show the
+    # sticky column header and the subtotal of the section in view without loading every page.
+    meta["outline"] = [{"r": row["r"], "kind": row["kind"], "cells": row["cells"]}
+                       for row in sheet["rows"] if row["kind"] in OUTLINE_KINDS][:MAX_OUTLINE]
+    return meta
 
 
 def workbook_meta(wb: Workbook) -> dict:
@@ -566,6 +575,8 @@ def find_sheet(wb: Workbook, sheet: str | int | None) -> int | None:
 def _marker_pred(filter_: str):
     if filter_ == "flagged":
         return lambda m: m is not None and m.get("marker") is not None
+    if filter_ == "attention":  # CHECK or NO PRICE
+        return lambda m: m is not None and bool({"CHECK", "NO PRICE"} & set(m.get("_eff", ())))
     want = {"web": "WEB", "check": "CHECK", "no_price": "NO PRICE", "edited": "EDITED"}[filter_]
     return lambda m: m is not None and want in m.get("_eff", ())
 

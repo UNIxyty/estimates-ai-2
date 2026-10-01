@@ -1,0 +1,3 @@
+.accInk:hover { color: var(--accInk) !important; }
+.accLine:hover { border-color: var(--acc) !important; }
+.flash { transition: border-color .3s; }

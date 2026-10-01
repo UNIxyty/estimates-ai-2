@@ -16,6 +16,7 @@
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",
     "next": "^15.5.27",
+    "pdfjs-dist": "^5.7.284",
     "postgres": "^3.4.9",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

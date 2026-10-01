@@ -1,64 +1,185 @@
 'use client';
 
+/** design/history.dc.html, DESIGN.md §4.8. */
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
-import { DesignPending } from '@/components/DesignPending';
-import { api, usd, when } from '@/lib/client';
+import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { MenuButton, useShell } from '@/components/Shell';
+import { KindText, LangTag, MONO, StatusBadge, type Tone } from '@/components/ui';
+import { ViewerLayout } from '@/components/viewer/ViewerLayout';
+import { useDocViewer } from '@/components/viewer/useDocViewer';
+import { api } from '@/lib/client';
+import s from './history.module.css';
+
+type Status = 'In progress' | 'Done' | 'Sent';
+interface Row {
+  id: string;
+  title: string;
+  attachments: string[];
+  messages: number;
+  last_activity_at: string;
+  status: Status;
+  language: string | null;
+  cost_usd: number;
+  document: { id: string; name: string; language: string | null; created_at: string } | null;
+}
+
+const ST: Record<Status, Tone> = { 'In progress': 'acc', Done: 'ok', Sent: 'mute' };
+const COLS = 'minmax(200px,1.4fr) 110px 120px 56px 70px minmax(200px,1fr)';
+const select: CSSProperties = { height: 38, padding: '0 10px', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--panel)', color: 'var(--ink)', font: 'inherit', fontSize: 13.5 };
+
+function dayDiff(d: Date) {
+  const now = new Date();
+  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  return Math.round((day(now) - day(d)) / 86400000);
+}
+/** "Today, 10:42", "Yesterday", "25 Sep" (with the year when it is not this year). */
+function histDate(v: string) {
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return '—';
+  const diff = dayDiff(d);
+  if (diff === 0) return `Today, ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+  if (diff === 1) return 'Yesterday';
+  const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+  return d.toLocaleDateString('en-GB', opts);
+}
+const cost = (n: number) => (n > 0 && n < 0.01 ? '<$0.01' : `$${n.toFixed(2)}`);
 
 export default function HistoryPage() {
+  const router = useRouter();
+  const { mobile } = useShell();
+  const viewer = useDocViewer();
+  const [rows, setRows] = useState<Row[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
-  const [rows, setRows] = useState<any[] | null>(null);
-  const load = useCallback(() => {
-    api<{ conversations: any[] }>(`/api/conversations?q=${encodeURIComponent(q)}`).then((r) => setRows(r.conversations)).catch(() => {});
-  }, [q]);
+  const [status, setStatus] = useState('');
+  const [lang, setLang] = useState('');
+  const [date, setDate] = useState('');
+
   useEffect(() => {
-    const t = setTimeout(load, 200);
-    return () => clearTimeout(t);
-  }, [load]);
+    api<{ history: Row[] }>('/api/history').then((r) => setRows(r.history)).catch((e) => setError(e.message || 'Could not load history.'));
+  }, []);
 
-  async function rename(id: string, title: string) {
-    const t = prompt('New title', title);
-    if (!t) return;
-    await api(`/api/conversations/${id}`, { method: 'PATCH', json: { title: t } }).catch((e) => alert(e.message));
-    load();
-  }
-  async function remove(id: string) {
-    if (!confirm('Delete this conversation and its documents?')) return;
-    await api(`/api/conversations/${id}`, { method: 'DELETE' }).catch((e) => alert(e.message));
-    load();
-  }
+  const shown = useMemo(() => {
+    if (!rows) return [];
+    const needle = q.trim().toLowerCase();
+    return rows.filter((r) =>
+      (!needle || [r.title, ...r.attachments, r.document?.name ?? ''].join(' ').toLowerCase().includes(needle)) &&
+      (!status || r.status === status) &&
+      (!lang || r.language === lang) &&
+      (!date || dayDiff(new Date(r.last_activity_at)) <= Number(date)));
+  }, [rows, q, status, lang, date]);
 
-  return (
-    <section>
-      <DesignPending />
-      <h1>History</h1>
-      <p><label>Search <input type="search" value={q} onChange={(e) => setQ(e.target.value)} /></label></p>
-      {!rows ? (
-        <p>Loading…</p>
-      ) : rows.length === 0 ? (
-        <p>No conversations.</p>
-      ) : (
-        <table>
-          <thead>
-            <tr><th>Title</th><th>Last activity</th><th>Messages</th><th>Cost</th><th>Last run</th><th /></tr>
-          </thead>
-          <tbody>
-            {rows.map((c) => (
-              <tr key={c.id}>
-                <td><Link href={`/chat/${c.id}`}>{c.title}</Link></td>
-                <td>{when(c.last_activity_at)}</td>
-                <td>{c.messages}</td>
-                <td>{usd(c.cost_usd, 4)}</td>
-                <td>{c.last_run_status || '—'}</td>
-                <td>
-                  <button type="button" onClick={() => rename(c.id, c.title)}>Rename</button>{' '}
-                  <button type="button" onClick={() => remove(c.id)}>Delete</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </section>
+  const stacked = mobile || viewer.isOpen;
+  const empty = rows !== null && rows.length === 0;
+  const total = shown.reduce((a, r) => a + r.cost_usd, 0);
+
+  const openDoc = (r: Row) => {
+    if (!r.document) return;
+    viewer.open({ source: 'document', id: r.document.id, name: r.document.name, language: r.document.language ?? r.language, subtitle: `Generated by the agent · ${r.title}` });
+  };
+  const go = (id: string) => router.push(`/chat/${id}`);
+
+  const content = (
+    <main style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
+      <div style={{ maxWidth: 1040, margin: '0 auto', padding: '24px 20px 48px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <MenuButton />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600, letterSpacing: '-0.01em' }}>History</h1>
+            <span style={{ fontSize: 14, color: 'var(--ink2)' }}>Every estimate and conversation, newest first.</span>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <label style={{ flex: 1, minWidth: 220, display: 'flex', alignItems: 'center', gap: 8, height: 38, padding: '0 12px', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--panel)' }}>
+            <span style={{ color: 'var(--ink3)', fontSize: 13 }}>Search</span>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Client, project or file"
+              style={{ flex: 1, minWidth: 0, border: 0, outline: 0, background: 'transparent', color: 'var(--ink)', font: 'inherit', fontSize: 14 }} />
+          </label>
+          <select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)} style={select}>
+            <option value="">Any status</option><option>In progress</option><option>Done</option><option>Sent</option>
+          </select>
+          <select aria-label="Language" value={lang} onChange={(e) => setLang(e.target.value)} style={select}>
+            <option value="">Any language</option><option value="LV">Latvian (LV)</option><option value="DA">Danish (DA)</option><option value="EN">English (EN)</option>
+          </select>
+          <select aria-label="Date" value={date} onChange={(e) => setDate(e.target.value)} style={select}>
+            <option value="">Any time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option>
+          </select>
+        </div>
+
+        <div style={{ border: '1px solid var(--line)', borderRadius: 14, background: 'var(--panel)', overflow: 'hidden' }}>
+          {!stacked && (
+            <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '0 8px', borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600, color: 'var(--ink2)' }}>
+              <div style={{ padding: '10px 8px' }}>Client / project</div><div style={{ padding: '10px 8px' }}>Date</div><div style={{ padding: '10px 8px' }}>Status</div>
+              <div style={{ padding: '10px 8px' }}>Lang.</div><div style={{ padding: '10px 8px', textAlign: 'right' }}>AI cost</div><div style={{ padding: '10px 8px' }}>Output file</div>
+            </div>
+          )}
+          {rows === null && !error && <div style={{ padding: '48px 20px', textAlign: 'center', fontSize: 14, color: 'var(--ink3)' }}>Loading…</div>}
+          {error && <div style={{ padding: '48px 20px', textAlign: 'center', fontSize: 14, color: 'var(--err)' }}>{error}</div>}
+          {shown.map((r) => (
+            <div key={r.id} role="link" tabIndex={0} className="hv-side" aria-label={`Open ${r.title}`}
+              onClick={() => go(r.id)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) go(r.id); }}
+              style={{ display: stacked ? 'flex' : 'grid', gridTemplateColumns: COLS, flexDirection: 'column', alignItems: stacked ? 'stretch' : 'center', gap: stacked ? 4 : 0, padding: stacked ? '8px 8px 12px' : '4px 8px', borderBottom: '1px solid var(--line2)', color: 'var(--ink)', fontSize: 14, cursor: 'pointer' }}>
+              <div style={{ padding: 8, display: 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
+                <span style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.title}</span>
+                <span style={{ fontSize: 12.5, color: 'var(--ink3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {r.attachments[0] ?? `${r.messages} message${r.messages === 1 ? '' : 's'}`}
+                </span>
+              </div>
+              {stacked ? (
+                <div style={{ padding: '0 8px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{ color: 'var(--ink2)', fontSize: 13 }}>{histDate(r.last_activity_at)}</span>
+                  <StatusBadge label={r.status} tone={ST[r.status]} />
+                  <LangTag lang={r.language} />
+                  <span style={{ marginLeft: 'auto', fontFamily: MONO, fontSize: 12.5, color: 'var(--ink2)' }}>{cost(r.cost_usd)}</span>
+                </div>
+              ) : (
+                <>
+                  <div style={{ padding: '0 8px', color: 'var(--ink2)', fontSize: 13 }}>{histDate(r.last_activity_at)}</div>
+                  <div style={{ padding: '0 8px' }}><StatusBadge label={r.status} tone={ST[r.status]} /></div>
+                  <div style={{ padding: '0 8px' }}>{r.language ? <LangTag lang={r.language} /> : <span style={{ color: 'var(--ink3)', fontSize: 13 }}>—</span>}</div>
+                  <div style={{ padding: '0 8px', textAlign: 'right', fontFamily: MONO, fontSize: 12.5, color: 'var(--ink2)' }}>{cost(r.cost_usd)}</div>
+                </>
+              )}
+              <div style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, width: '100%' }}>
+                {r.document ? (
+                  <>
+                    <button type="button" title="Open in viewer" className={s.accLine}
+                      onClick={(e) => { e.stopPropagation(); openDoc(r); }}
+                      style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, height: 32, padding: '0 10px', border: '1px solid var(--line)', borderRadius: 8, background: 'var(--panel)', color: 'var(--ink)', font: 'inherit', fontSize: 13, cursor: 'pointer', textAlign: 'left' }}>
+                      <KindText name={r.document.name} style={{ fontSize: 9 }} />
+                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.document.name}</span>
+                    </button>
+                    <a href={`/api/documents/${r.document.id}/download`} download title="Download" aria-label={`Download ${r.document.name}`} className="hv-sunk"
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ width: 32, height: 32, flex: 'none', border: '1px solid var(--line)', borderRadius: 8, background: 'var(--panel)', color: 'var(--ink2)', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>↓</a>
+                  </>
+                ) : (
+                  <span style={{ fontSize: 13, color: 'var(--ink3)' }}>Not finished yet</span>
+                )}
+              </div>
+            </div>
+          ))}
+          {rows !== null && shown.length === 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '48px 20px', textAlign: 'center' }}>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{empty ? 'No estimates yet' : 'Nothing matches these filters'}</div>
+              <div style={{ fontSize: 14, color: 'var(--ink2)' }}>{empty ? 'Estimates you make in chat appear here with their files and costs.' : 'Try a different search or clear a filter.'}</div>
+              <Link href="/chat" style={{ fontWeight: 500 }}>Start a new estimate</Link>
+            </div>
+          )}
+        </div>
+        {rows !== null && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--ink3)' }}>
+            <span>{shown.length} conversation{shown.length === 1 ? '' : 's'}</span>
+            <span>Total AI cost {cost(total)}</span>
+          </div>
+        )}
+      </div>
+    </main>
   );
+
+  return <ViewerLayout viewer={viewer} railLabel="History">{content}</ViewerLayout>;
 }

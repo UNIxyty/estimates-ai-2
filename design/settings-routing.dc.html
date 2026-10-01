@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('eaa-theme')||'light'}catch(e){}</script>
+<style>
+:root,[data-theme=light]{--bg:#fcfcfd;--side:#f5f6f8;--panel:#ffffff;--sunk:#eef0f3;--bubble:#eceff4;--line:#e1e4e9;--line2:#eceef2;--ink:#15181c;--ink2:#4a525c;--ink3:#737b86;--acc:#1f5eff;--accSoft:#e7eeff;--accInk:#1747c9;--ok:#177a43;--okSoft:#e3f3e9;--warn:#9a5700;--warnSoft:#fcefd8;--err:#bf3228;--errSoft:#fbe6e4;--web:#0d6e84;--webSoft:#dff1f5;--hl:#fff1b3;--hl2:#fff8d6;color-scheme:light}
+[data-theme=dark]{--bg:#141619;--side:#101214;--panel:#1a1d21;--sunk:#23272c;--bubble:#262a30;--line:#2d3238;--line2:#23272c;--ink:#e7e9ec;--ink2:#adb4bc;--ink3:#7f8791;--acc:#4a7dff;--accSoft:#1b2851;--accInk:#9ab7ff;--ok:#5cc98a;--okSoft:#14301f;--warn:#f0b04a;--warnSoft:#3a2a10;--err:#f07a70;--errSoft:#3d1a18;--web:#55c6da;--webSoft:#0f2d33;--hl:#4a3f12;--hl2:#2e2912;color-scheme:dark}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--accInk)}a:hover{color:var(--acc)}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+<title>Model routing · Settings</title></helmet>
+<div style="height:100vh;display:flex;background:var(--bg);color:var(--ink);overflow:hidden;">
+  <dc-import name="Sidebar" active="settings" mobile="{{ mobile }}" open="{{ drawer }}" on-close="{{ closeDrawer }}" hint-size="264px,100%"></dc-import>
+  <main style="flex:1;min-width:0;overflow:auto;">
+    <div style="max-width:1160px;margin:0 auto;padding:24px 20px 48px;display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start;">
+      <div style="width:200px;flex:none;display:flex;flex-direction:column;gap:8px;">
+        <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}"><button onClick="{{ openDrawer }}" style="width:40px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--ink);font-size:18px;cursor:pointer;">☰</button></sc-if>
+        <dc-import name="SettingsNav" active="routing" hint-size="200px,200px"></dc-import>
+      </div>
+      <div style="flex:1;min-width:300px;display:flex;flex-direction:column;gap:20px;">
+        <div style="display:flex;flex-direction:column;gap:2px;"><h1 style="margin:0;font-size:22px;font-weight:600;">Model routing</h1><span style="font-size:14px;color:var(--ink2);">Every request goes to the cheapest model that can do the job well. Simple questions are cheap; building an estimate needs the strongest model.</span></div>
+
+        <div style="padding:20px;border:1px solid var(--line);border-radius:16px;background:var(--panel);overflow-x:auto;">
+          <div style="min-width:760px;display:grid;grid-template-columns:170px 48px 190px 48px minmax(0,1fr);align-items:stretch;">
+            <div style="display:flex;align-items:center;">
+              <div style="width:100%;display:flex;flex-direction:column;gap:8px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--side);">
+                <span style="font-size:12px;font-weight:600;color:var(--ink3);">1 · Incoming request</span>
+                <span style="font-size:13px;color:var(--ink2);line-height:1.5;">A message, an uploaded file, a blank or a work list</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;"><div style="flex:1;height:1.5px;background:var(--ink3);"></div><span style="color:var(--ink3);margin-left:-4px;font-size:12px;">▶</span></div>
+            <div style="display:flex;align-items:center;">
+              <div style="width:100%;display:flex;flex-direction:column;gap:10px;padding:14px;border:1.5px solid var(--acc);border-radius:12px;background:var(--accSoft);">
+                <span style="font-size:12px;font-weight:600;color:var(--accInk);">2 · Router</span>
+                <span style="font-size:13px;line-height:1.5;">Looks at the task type and picks a tier.</span>
+                <label style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;line-height:1.4;cursor:pointer;"><input type="checkbox" checked="{{ escalate }}" onChange="{{ toggleEsc }}" style="accent-color:var(--acc);margin-top:2px;"></input>Move up a tier when the agent is unsure</label>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;position:relative;">
+              <div style="position:absolute;right:0;top:16.66%;bottom:16.66%;width:1.5px;background:var(--ink3);"></div>
+              <div style="flex:1;display:flex;align-items:center;"><div style="flex:1;height:1.5px;background:var(--ink3);"></div></div>
+              <div style="flex:1;display:flex;align-items:center;"></div>
+              <div style="flex:1;display:flex;align-items:center;"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <sc-for list="{{ tiers }}" as="t" hint-placeholder-count="3">
+                <div style="display:flex;align-items:stretch;opacity:{{ t.op }};">
+                  <div style="width:28px;flex:none;display:flex;align-items:center;"><div style="flex:1;height:1.5px;background:var(--ink3);"></div><span style="color:var(--ink3);margin-left:-4px;font-size:12px;">▶</span></div>
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--panel);">
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                      <span style="font-size:15px;font-weight:600;">{{ t.name }}</span>
+                      <span style="font-size:12.5px;color:var(--ink3);">{{ t.model }}</span>
+                      <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink2);">{{ t.price }}</span>
+                      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2);cursor:pointer;"><span onClick="{{ t.toggle }}" style="width:32px;height:18px;border-radius:9px;background:{{ t.swBg }};position:relative;display:inline-block;"><span style="position:absolute;top:2px;left:{{ t.knob }}px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .15s;"></span></span>{{ t.onLabel }}</label>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                      <sc-for list="{{ t.tasks }}" as="k" hint-placeholder-count="2"><span style="height:26px;display:inline-flex;align-items:center;gap:6px;padding:0 10px;border-radius:13px;background:{{ k.bg }};color:{{ k.fg }};font-size:12.5px;">{{ k.label }}<sc-if value="{{ k.over }}" hint-placeholder-val="{{ false }}"><span style="font-size:10.5px;font-weight:600;">OVERRIDE</span></sc-if></span></sc-for>
+                      <sc-if value="{{ t.empty }}" hint-placeholder-val="{{ false }}"><span style="font-size:12.5px;color:var(--ink3);">{{ t.emptyLabel }}</span></sc-if>
+                    </div>
+                    <span style="font-size:12px;color:var(--ink3);">{{ t.spend }}</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:baseline;gap:10px;"><span style="font-size:15px;font-weight:600;">Per-task overrides</span><span style="font-size:13px;color:var(--ink3);">Change where a task goes. The diagram updates.</span></div>
+          <div style="border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow-x:auto;">
+            <div style="min-width:600px;">
+              <div style="display:grid;grid-template-columns:minmax(220px,1fr) 110px 170px 90px;font-size:12px;font-weight:600;color:var(--ink2);border-bottom:1px solid var(--line);"><div style="padding:10px 16px;">Task</div><div style="padding:10px 8px;">Default</div><div style="padding:10px 8px;">Send to</div><div style="padding:10px 16px 10px 8px;text-align:right;">This month</div></div>
+              <sc-for list="{{ rows }}" as="r" hint-placeholder-count="8">
+                <div style="display:grid;grid-template-columns:minmax(220px,1fr) 110px 170px 90px;align-items:center;border-bottom:1px solid var(--line2);font-size:13.5px;background:{{ r.bg }};">
+                  <div style="padding:8px 16px;">{{ r.label }}</div>
+                  <div style="padding:8px;color:var(--ink2);">{{ r.def }}</div>
+                  <div style="padding:6px 8px;"><select value="{{ r.val }}" onChange="{{ r.set }}" style="height:32px;width:100%;padding:0 8px;border:1px solid {{ r.selLine }};border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px;"><option value="">Default ({{ r.def }})</option><option value="Fast">Fast</option><option value="Standard">Standard</option><option value="Advanced">Advanced</option></select></div>
+                  <div style="padding:8px 16px 8px 8px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink2);">{{ r.spend }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;"><button onClick="{{ reset }}" style="height:34px;padding:0 12px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--ink);font:inherit;font-size:13px;cursor:pointer;">Reset to defaults</button><span style="font-size:12.5px;color:var(--ink3);">Changes apply to new messages right away.</span></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const TIERS = [['Fast', 'Claude Haiku', '$1 in · $5 out / 1M tokens', 6.2], ['Standard', 'Claude Sonnet', '$3 in · $15 out / 1M tokens', 61.3], ['Advanced', 'Claude Opus', '$15 in · $75 out / 1M tokens', 75.3]];
+const TASKS = [['Simple questions about an estimate', 'Fast', 3.1], ['Short replies and confirmations', 'Fast', 0.9], ['Sending estimates by email', 'Fast', 0.2], ['Analysing files for the knowledge base', 'Standard', 18.4], ['Filling a blank with prices', 'Standard', 36.2], ['Searching supplier websites', 'Standard', 6.7], ['Generating an estimate from a work list', 'Advanced', 41.8], ['Complex reasoning across many rows', 'Advanced', 33.5]];
+class Component extends DCLogic {
+  state = { mobile: false, drawer: false, over: {}, off: {}, escalate: true };
+  componentDidMount() { this.setState({ mobile: window.innerWidth < 760 }); this._rs = () => this.setState({ mobile: window.innerWidth < 760 }); window.addEventListener('resize', this._rs); }
+  componentWillUnmount() { window.removeEventListener('resize', this._rs); }
+  renderVals() {
+    const s = this.state, order = ['Fast', 'Standard', 'Advanced'];
+    const target = (t) => { let tier = s.over[t[0]] || t[1]; let i = order.indexOf(tier); while (s.off[order[i]] && i < 2) i++; return order[i]; };
+    return {
+      mobile: s.mobile, drawer: s.drawer, openDrawer: () => this.setState({ drawer: true }), closeDrawer: () => this.setState({ drawer: false }),
+      escalate: s.escalate, toggleEsc: () => this.setState({ escalate: !s.escalate }),
+      tiers: TIERS.map(([name, model, price, spend]) => { const on = !s.off[name], tasks = TASKS.filter(t => target(t) === name); return {
+        name, model, price, op: on ? 1 : 0.55, swBg: on ? 'var(--acc)' : 'var(--line)', knob: on ? 16 : 2, onLabel: on ? 'On' : 'Off',
+        toggle: e => { e.preventDefault(); if (name === 'Advanced') return; this.setState({ off: { ...s.off, [name]: on } }); },
+        tasks: tasks.map(t => ({ label: t[0], over: !!s.over[t[0]] || target(t) !== t[1], bg: s.over[t[0]] || target(t) !== t[1] ? 'var(--accSoft)' : 'var(--sunk)', fg: s.over[t[0]] || target(t) !== t[1] ? 'var(--accInk)' : 'var(--ink)' })),
+        empty: !tasks.length, emptyLabel: on ? 'No tasks routed here' : 'Off. Its tasks go to the next tier up.', spend: `This month: $${spend.toFixed(2)}` }; }),
+      rows: TASKS.map(t => ({ label: t[0], def: t[1], val: s.over[t[0]] || '', spend: '$' + t[2].toFixed(2), bg: s.over[t[0]] ? 'var(--side)' : 'transparent', selLine: s.over[t[0]] ? 'var(--acc)' : 'var(--line)',
+        set: e => { const v = e.target.value, o = { ...s.over }; if (v && v !== t[1]) o[t[0]] = v; else delete o[t[0]]; this.setState({ over: o }); } })),
+      reset: () => this.setState({ over: {}, off: {}, escalate: true }),
+    };
+  }
+}
+</script>
+</body>
+</html>

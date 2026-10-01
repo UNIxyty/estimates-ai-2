@@ -23,17 +23,15 @@ DEFAULT_TASKS: dict[str, str] = {
     "complex_reasoning": "advanced",
 }
 
-# USD per 1M tokens. Defaults are Anthropic list prices for the model families; Bedrock pricing is
-# set by AWS per region, so verify against https://aws.amazon.com/bedrock/pricing/ and edit these
-# on /settings/routing. Keys are matched exactly first, then by family substring.
+# USD per 1M tokens: AWS Bedrock on-demand prices for eu-north-1 (Stockholm), from the AWS price list API
+# (2026-10-01). eu.* inference profiles bill at the "Regional" rate (list price + 10%); cache_write is the
+# 5-minute cache. Edit on /settings/routing if AWS changes them. Keys are matched exactly first, then by
+# family substring, so eu.anthropic.claude-opus-4-6-v1 resolves to "claude-opus-4-6".
 DEFAULT_MODEL_PRICES: dict[str, dict[str, float]] = {
-    "claude-haiku-4-5": {"input": 1.00, "output": 5.00, "cache_read": 0.10, "cache_write": 1.25},
-    "claude-sonnet-5-5": {"input": 2.00, "output": 10.00, "cache_read": 0.20, "cache_write": 2.50},
-    "claude-opus-5-5": {"input": 4.00, "output": 20.00, "cache_read": 0.20, "cache_write": 5.00},
-    "claude-sonnet-4-5": {"input": 3.00, "output": 15.00, "cache_read": 0.30, "cache_write": 3.75},
-    "claude-opus-4-1": {"input": 15.00, "output": 75.00, "cache_read": 1.50, "cache_write": 18.75},
-    "cohere.embed-multilingual-v3": {"input": 0.10, "output": 0.0, "cache_read": 0.0, "cache_write": 0.0},
-    "amazon.titan-embed-text-v2": {"input": 0.02, "output": 0.0, "cache_read": 0.0, "cache_write": 0.0},
+    "claude-haiku-4-5": {"input": 1.10, "output": 5.50, "cache_read": 0.11, "cache_write": 1.375},
+    "claude-sonnet-4-6": {"input": 3.30, "output": 16.50, "cache_read": 0.33, "cache_write": 4.125},
+    "claude-opus-4-6": {"input": 5.50, "output": 27.50, "cache_read": 0.55, "cache_write": 6.875},
+    "amazon.titan-embed-text-v2": {"input": 0.021, "output": 0.0, "cache_read": 0.0, "cache_write": 0.0},
 }
 
 _cache: dict[str, tuple[float, dict]] = {}

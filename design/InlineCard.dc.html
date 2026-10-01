@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="width:100%;border:1px solid {{ line }};border-radius:14px;background:var(--panel);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px;line-height:1.5;color:var(--ink);overflow:hidden;">
+  <div style="display:flex;align-items:center;gap:8px;padding:12px 16px 0;">
+    <span style="font-size:12px;font-weight:600;color:var(--ink2);">{{ label }}</span>
+    <span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:11px;font-size:11.5px;font-weight:500;color:{{ pillFg }};background:{{ pillBg }};"><span style="width:6px;height:6px;border-radius:50%;background:currentColor;"></span>{{ pill }}</span>
+  </div>
+
+  <sc-if value="{{ isPermission }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:8px 16px 14px;display:flex;flex-direction:column;gap:6px;">
+      <div style="color:{{ bodyFg }};">Socket prices aren't in your selected references. I found them in <b style="font-weight:600;">'Price list 2025.xlsx'</b>. Can I use it?</div>
+      <div style="font-size:12.5px;color:var(--ink3);">Affects 3 rows: EL 42, 51, 52</div>
+    </div>
+    <sc-if value="{{ pending }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 16px;">
+        <button onClick="{{ allow }}" style="height:36px;padding:0 14px;border:0;border-radius:9px;background:var(--acc);color:#fff;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;">Allow for this estimate</button>
+        <button onClick="{{ deny }}" style="height:36px;padding:0 14px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;" style-hover="background:var(--sunk);">Deny: search the web instead</button>
+      </div>
+    </sc-if>
+  </sc-if>
+
+  <sc-if value="{{ isStructure }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:8px 16px 12px;color:{{ bodyFg }};">I'll build this like <b style="font-weight:600;">'{{ tpl.name }}'</b>, the reference closest to your work list.</div>
+    <sc-if value="{{ pending }}" hint-placeholder-val="{{ true }}">
+      <div style="display:grid;grid-template-columns:96px minmax(0,1fr);margin:0 16px;border-top:1px solid var(--line2);font-size:13px;">
+        <div style="padding:9px 0;color:var(--ink3);border-bottom:1px solid var(--line2);">Sheets</div><div style="padding:9px 0;border-bottom:1px solid var(--line2);">{{ tpl.sheets }}</div>
+        <div style="padding:9px 0;color:var(--ink3);border-bottom:1px solid var(--line2);">Sections</div><div style="padding:9px 0;border-bottom:1px solid var(--line2);">{{ tpl.sections }}</div>
+        <div style="padding:9px 0;color:var(--ink3);border-bottom:1px solid var(--line2);">Columns</div><div style="padding:9px 0;border-bottom:1px solid var(--line2);">{{ tpl.columns }}</div>
+        <div style="padding:9px 0;color:var(--ink3);border-bottom:1px solid var(--line2);">Pricing</div><div style="padding:9px 0;border-bottom:1px solid var(--line2);">{{ tpl.logic }}</div>
+        <div style="padding:9px 0;color:var(--ink3);display:flex;align-items:center;">Language</div>
+        <div style="padding:6px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <select value="{{ lang }}" onChange="{{ onLang }}" style="height:30px;padding:0 8px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px;"><option value="LV">Latvian (LV)</option><option value="EN">English (EN)</option><option value="DA">Danish (DA)</option></select>
+          <span style="font-size:12px;color:var(--ink3);">{{ langNote }}</span>
+        </div>
+      </div>
+      <sc-if value="{{ picking }}" hint-placeholder-val="{{ false }}">
+        <div style="margin:10px 16px 0;border:1px solid var(--line);border-radius:10px;overflow:hidden;">
+          <sc-for list="{{ tplOptions }}" as="o" hint-placeholder-count="3">
+            <button onClick="{{ o.pick }}" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border:0;border-bottom:1px solid var(--line2);background:{{ o.bg }};color:var(--ink);font:inherit;font-size:13px;text-align:left;cursor:pointer;" style-hover="background:var(--sunk);"><span style="flex:1;">{{ o.name }}</span><span style="font-size:12px;color:var(--ink3);">{{ o.meta }}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:var(--ink2);border:1px solid var(--line);border-radius:4px;padding:0 5px;">{{ o.lang }}</span></button>
+          </sc-for>
+        </div>
+      </sc-if>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;padding:14px 16px 16px;">
+        <button onClick="{{ generate }}" style="height:36px;padding:0 16px;border:0;border-radius:9px;background:var(--acc);color:#fff;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;">Generate</button>
+        <button onClick="{{ change }}" style="height:36px;padding:0 14px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px;cursor:pointer;" style-hover="background:var(--sunk);">Change structure</button>
+        <button onClick="{{ togglePick }}" style="height:36px;padding:0 14px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px;cursor:pointer;" style-hover="background:var(--sunk);">Use a different reference</button>
+      </div>
+    </sc-if>
+  </sc-if>
+
+  <sc-if value="{{ isClarify }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:8px 16px 4px;color:{{ bodyFg }};">The work list is too short to price reliably. A few quick answers and I can start.</div>
+    <sc-if value="{{ pending }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:14px;padding:10px 16px 4px;">
+        <sc-for list="{{ questions }}" as="q" hint-placeholder-count="4">
+          <div style="display:flex;flex-direction:column;gap:7px;">
+            <div style="font-size:13.5px;font-weight:500;">{{ q.n }}. {{ q.text }}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              <sc-for list="{{ q.opts }}" as="o" hint-placeholder-count="3">
+                <button onClick="{{ o.pick }}" style="height:30px;padding:0 12px;border-radius:15px;border:1px solid {{ o.line }};background:{{ o.bg }};color:{{ o.fg }};font:inherit;font-size:13px;cursor:pointer;">{{ o.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:14px 16px 16px;">
+        <button onClick="{{ sendAnswers }}" style="height:36px;padding:0 16px;border:0;border-radius:9px;background:{{ sendBg }};color:#fff;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;">Send answers</button>
+        <button onClick="{{ skip }}" style="height:36px;padding:0 12px;border:0;border-radius:9px;background:transparent;color:var(--ink2);font:inherit;font-size:13.5px;cursor:pointer;" style-hover="background:var(--sunk);">Skip, use defaults</button>
+        <span style="font-size:12px;color:var(--ink3);">{{ answeredLabel }}</span>
+      </div>
+    </sc-if>
+    <sc-if value="{{ clarifyDone }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 16px 4px;">
+        <sc-for list="{{ answers }}" as="a" hint-placeholder-count="4"><span style="height:26px;display:inline-flex;align-items:center;padding:0 10px;border-radius:13px;background:var(--sunk);font-size:12.5px;color:var(--ink2);">{{ a }}</span></sc-for>
+      </div>
+    </sc-if>
+  </sc-if>
+
+  <sc-if value="{{ isEmail }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 16px 14px;">
+      <sc-if value="{{ emailSending }}" hint-placeholder-val="{{ false }}">{{ spinner }}</sc-if>
+      <sc-if value="{{ emailDone }}" hint-placeholder-val="{{ false }}"><span style="width:22px;height:22px;flex:none;border-radius:50%;background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;">✓</span></sc-if>
+      <sc-if value="{{ emailFailed }}" hint-placeholder-val="{{ false }}"><span style="width:22px;height:22px;flex:none;border-radius:50%;background:var(--err);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">!</span></sc-if>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+        <span>{{ emailTitle }}</span>
+        <span style="font-size:12.5px;color:{{ emailSubFg }};">{{ emailSub }}</span>
+      </div>
+      <sc-if value="{{ emailFailed }}" hint-placeholder-val="{{ false }}"><button onClick="{{ retry }}" style="height:34px;padding:0 14px;border:0;border-radius:9px;background:var(--acc);color:#fff;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;">Retry</button></sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ footer }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--line2);background:var(--side);font-size:13px;color:var(--ink2);">
+      <span style="flex:1;">{{ footer }}</span>
+      <sc-if value="{{ canReask }}" hint-placeholder-val="{{ false }}"><button onClick="{{ reask }}" style="height:28px;padding:0 10px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink);font:inherit;font-size:12.5px;cursor:pointer;">Ask again</button></sc-if>
+      <sc-if value="{{ canUndo }}" hint-placeholder-val="{{ false }}"><button onClick="{{ undo }}" style="height:28px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--accInk);font:inherit;font-size:12.5px;cursor:pointer;">Undo</button></sc-if>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:640,&quot;height&quot;:420},&quot;kind&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;permission&quot;,&quot;structure&quot;,&quot;clarify&quot;,&quot;email&quot;],&quot;default&quot;:&quot;permission&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;state&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;pending&quot;,&quot;approved&quot;,&quot;denied&quot;,&quot;expired&quot;,&quot;done&quot;,&quot;failed&quot;],&quot;default&quot;:&quot;pending&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;onAction&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(kind, action) =&gt; void&quot;}}">
+const PILL = {
+  pending: ['Waiting for you', 'var(--accInk)', 'var(--accSoft)'], approved: ['Approved', 'var(--ok)', 'var(--okSoft)'], denied: ['Denied', 'var(--ink2)', 'var(--sunk)'],
+  expired: ['Expired', 'var(--ink3)', 'var(--sunk)'], done: ['Done', 'var(--ok)', 'var(--okSoft)'], failed: ['Failed', 'var(--err)', 'var(--errSoft)'], sending: ['Sending', 'var(--accInk)', 'var(--accSoft)'],
+};
+const TPL = {
+  braila: { name: 'Braila 23.xlsx', lang: 'LV', sheets: 'EL · ELT', sections: '1 Kabeļi · 2 Instalācijas izstrādājumi · 3 Sadales · 4 Vājstrāvas', columns: 'Nr. · Nosaukums · Mērv. · Daudz. · Norma h · Darbs EUR · Materiāli EUR · Kopā EUR', logic: 'Labour = norm × EUR 24/h. Material from price list + 12% markup.', meta: '300 rows' },
+  priedes: { name: 'Priedes iela 4.xlsx', lang: 'LV', sheets: 'Elektro · Vājstrāva', sections: '1 Sadales · 2 Kabeļi · 3 Izstrādājumi', columns: 'Nr. · Nosaukums · Mērv. · Daudz. · Cena · Summa', logic: 'Labour = norm × EUR 22/h. Material + 10% markup.', meta: '412 rows' },
+  datacenter: { name: 'data-center.xlsx', lang: 'DA', sheets: 'EL · ELT · Belysning', sections: '1 Installationsmateriel · 2 Gruppetavler · 3 Kabler og kabelføring', columns: 'Nr. · Beskrivelse · Enh. · Antal · Norm t · Arbejde kr · Materiale kr · I alt kr', logic: 'Labour = norm × DKK 430/h. Material from price list, no markup.', meta: '932 rows' },
+};
+const QS = [
+  ['What kind of building is it?', ['Office', 'Residential', 'Retail', 'Industrial']],
+  ['New build or renovation?', ['New build', 'Renovation']],
+  ['Should the estimate include light fittings?', ['Supply and install', 'Install only', 'No']],
+  ['Which reference should I follow?', ['Skolegade 14.xlsx', 'data-center.xlsx', 'You choose']],
+];
+class Component extends DCLogic {
+  state = { s: null, tpl: 'braila', lang: null, picking: false, ans: {} };
+  componentDidUpdate(pp) { if (pp.state !== this.props.state && this.props.state) this.setState({ s: this.props.state }); }
+  set(s, action) { this.setState({ s }); this.props.onAction && this.props.onAction(this.props.kind, action || s); }
+  renderVals() {
+    const kind = this.props.kind || 'permission', s = this.state.s || this.props.state || 'pending', p = PILL[s] || PILL.pending, pending = s === 'pending';
+    const tpl = TPL[this.state.tpl], lang = this.state.lang || tpl.lang;
+    const labels = { permission: 'Permission needed', structure: 'Proposed structure', clarify: 'A few questions', email: 'Email' };
+    let footer = '', canReask = false, canUndo = false;
+    if (kind === 'permission') footer = { approved: 'Allowed for this estimate. Price list 2025.xlsx is now a reference.', denied: 'Denied. Searching supplier websites instead.', expired: 'This request expired. The estimate was finished without these prices.', done: 'Used Price list 2025.xlsx for 3 rows.' }[s] || '';
+    if (kind === 'structure') footer = { approved: `Generating with ${tpl.name} as the template, in ${lang === 'LV' ? 'Latvian' : lang === 'DA' ? 'Danish' : 'English'}.`, denied: 'You asked to change the structure. Tell me what to change.', expired: 'Replaced by a newer proposal below.', done: `Estimate generated from ${tpl.name}.` }[s] || '';
+    if (kind === 'clarify') footer = { expired: 'Expired. You sent a new message instead.', done: 'Answers sent.' }[s] || '';
+    canReask = s === 'expired' && kind !== 'email'; canUndo = kind === 'permission' && (s === 'approved' || s === 'denied');
+    const answered = Object.keys(this.state.ans).length;
+    const doneAnswers = answered ? QS.map((q, i) => this.state.ans[i]).filter(Boolean) : ['Office', 'Renovation', 'Install only', 'You choose'];
+    const em = { sending: ['Sending Estimate_Denmark.xlsx to m.kalnins@elektro.lv…', 'This usually takes a few seconds'], done: ['Sent to m.kalnins@elektro.lv: Estimate_Denmark.xlsx', '30 Sep 2026, 10:58'], failed: ["Couldn't send Estimate_Denmark.xlsx", "The mail server didn't respond. Nothing was sent."] }[s === 'pending' ? 'sending' : s] || ['', ''];
+    return {
+      label: labels[kind], pill: kind === 'email' && s === 'pending' ? 'Sending' : p[0], pillFg: p[1], pillBg: p[2],
+      line: pending && kind !== 'email' ? 'var(--acc)' : s === 'failed' ? 'var(--err)' : 'var(--line)', bodyFg: pending || kind === 'email' ? 'var(--ink)' : 'var(--ink2)',
+      isPermission: kind === 'permission', isStructure: kind === 'structure', isClarify: kind === 'clarify', isEmail: kind === 'email', pending: pending && kind !== 'email',
+      allow: () => this.set('approved', 'allow'), deny: () => this.set('denied', 'deny'),
+      footer, canReask, canUndo, reask: () => this.set('pending', 'reask'), undo: () => this.set('pending', 'undo'),
+      tpl, lang, langNote: lang === tpl.lang ? 'Same as the template' : `Changed from ${tpl.lang}`,
+      onLang: e => this.setState({ lang: e.target.value }),
+      picking: this.state.picking, togglePick: () => this.setState(st => ({ picking: !st.picking })),
+      tplOptions: Object.entries(TPL).map(([k, t]) => ({ name: t.name, meta: t.meta, lang: t.lang, bg: k === this.state.tpl ? 'var(--accSoft)' : 'var(--panel)', pick: () => this.setState({ tpl: k, lang: null, picking: false }) })),
+      generate: () => this.set('approved', 'generate'), change: () => this.set('denied', 'change'),
+      questions: QS.map((q, i) => ({ n: i + 1, text: q[0], opts: q[1].map(o => { const on = this.state.ans[i] === o; return { label: o, bg: on ? 'var(--acc)' : 'var(--panel)', fg: on ? '#fff' : 'var(--ink)', line: on ? 'var(--acc)' : 'var(--line)', pick: () => this.setState(st => ({ ans: { ...st.ans, [i]: o } })) }; }) })),
+      answeredLabel: `${answered} of ${QS.length} answered`, sendBg: answered === QS.length ? 'var(--acc)' : 'var(--ink3)',
+      sendAnswers: () => { if (answered === QS.length) this.set('done', 'answers'); }, skip: () => this.set('done', 'skip'),
+      clarifyDone: s === 'done', answers: doneAnswers,
+      emailSending: s === 'pending', emailDone: s === 'done', emailFailed: s === 'failed', emailTitle: em[0], emailSub: em[1], emailSubFg: s === 'failed' ? 'var(--err)' : 'var(--ink3)',
+      retry: () => { this.setState({ s: 'pending' }); setTimeout(() => this.setState({ s: 'done' }), 1600); },
+      spinner: React.createElement('span', { style: { width: 20, height: 20, flex: 'none', borderRadius: '50%', border: '2px solid var(--accSoft)', borderTopColor: 'var(--acc)', animation: 'spin .8s linear infinite', boxSizing: 'border-box' } }),
+    };
+  }
+}
+</script>
+</body>
+</html>

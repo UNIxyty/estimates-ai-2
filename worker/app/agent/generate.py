@@ -207,6 +207,9 @@ def run(rc: RunContext, attachments: list[dict], message_text: str, card: dict |
             raise RunWaiting()
         if action == "generate":
             cards.update(str(card["id"]), status="generating", expect_status=("pending", "generating"))
+            lang = data.get("language")
+            if isinstance(lang, str) and re.fullmatch(r"[A-Za-z]{2}", lang):  # Language selector on the card
+                prop = {**prop, "language": lang.upper()}
             _generate(rc, prop, card)
             cards.update(str(card["id"]), status="done")
             if rc.state.get("pending"):

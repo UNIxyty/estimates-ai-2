@@ -1,6 +1,7 @@
 """Internal DocViewer endpoints (web -> worker, ``X-Internal-Token`` required).
 
 Errors are JSON ``{error, reason?}``:
+kind is file | document | upload (chat attachment).
 400 bad_id|bad_kind|bad_param, 401 unauthorized, 404 not_found, 409 not_ready (xls not converted yet),
 415 unsupported (wrong viewer for the file type), 422 unreadable (corrupt file -> viewer failed state).
 """
@@ -76,9 +77,8 @@ def sheets(kind: str, id: str) -> Response:
         meta = xlsx_json.workbook_meta(wb)
         if kind == "document":
             counts = markers.marker_counts(t.id)
-            empty = {"web": 0, "check": 0, "no_price": 0, "edited": 0, "flagged": 0}
             for s in meta["sheets"]:
-                s["marker_counts"] = counts.get(s["name"], dict(empty))
+                s["marker_counts"] = counts.get(s["name"], markers.empty_counts())
         return {"kind": kind, "id": t.id, "name": t.name, **meta}
     return _handle(run)
 
@@ -111,8 +111,8 @@ def rows(request: Request, kind: str, id: str) -> Response:
 @router.get("/html")
 def html(kind: str, id: str) -> Response:
     def run():
-        if kind != "file":
-            raise ViewError(415, "unsupported", "html view is for docx knowledge files")
+        if kind not in ("file", "upload"):
+            raise ViewError(415, "unsupported", "html view is for docx knowledge files and uploads")
         t = resolve(kind, id)
         if t.ext != "docx":
             raise ViewError(415, "unsupported", f"{t.ext} has no html view")

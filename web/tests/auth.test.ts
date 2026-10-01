@@ -75,7 +75,7 @@ describe('invite → set password', () => {
   it('token is single use; the account becomes active with a session cookie', async () => {
     const { token, user, email } = await invited();
     const s = await state(token);
-    expect(s.body).toEqual({ state: 'valid', kind: 'invite', email });
+    expect(s.body).toEqual({ state: 'valid', kind: 'invite', email, inviter: 'Test User' });
     const r = await doSet(token, 'a-good-password-1');
     expect(r.status).toBe(200);
     const cookie = r.headers.get('set-cookie')!;

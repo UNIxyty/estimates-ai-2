@@ -167,7 +167,8 @@ def update_row(document_id: str, sheet: str, row_idx: int, changes: dict, user_i
         c.execute("""UPDATE estimate_rows SET qty=%s, unit=%s, unit_norm=%s, norm_h_per_unit=%s, hourly_rate=%s,
                          unit_labour=%s, unit_material=%s, total_labour=%s, total_material=%s, flags=%s,
                          original=%s, edited_by=%s, edited_at=now(), price_source='edited', updated_at=now(),
-                         reason = reason || ' (edited by user)'
+                         reason = CASE WHEN reason LIKE '%%(edited by user)' THEN reason
+                                       ELSE COALESCE(reason, '') || ' (edited by user)' END
                      WHERE id=%s""",
                   (qty, new["unit"], normalise_unit(new["unit"]), new["norm_h_per_unit"], new["hourly_rate"],
                    new["unit_labour"], new["unit_material"], tl, tm, flags, db.jsonb(original), user_id, row["id"]))

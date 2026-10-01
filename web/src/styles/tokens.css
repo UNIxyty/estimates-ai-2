@@ -1,8 +1,37 @@
 /*
- * Design tokens placeholder.
- *
- * The Claude Design project could not be imported in this session. The design's light/dark colour
- * tokens (as CSS custom properties on :root and a dark-mode override) and the IBM Plex Sans /
- * IBM Plex Mono font setup go here once the design is imported. Until then the app renders as
- * unstyled semantic HTML on purpose.
+ * Design tokens and base styles, from the Claude Design project "Estimates AI Agent" (design/DESIGN.md §2).
+ * Light is the default; [data-theme=dark] is set on <html> before first paint (see app/layout.tsx).
+ * Components use these tokens through inline styles, the same way the design files do.
  */
+:root,[data-theme=light]{--bg:#fcfcfd;--side:#f5f6f8;--panel:#ffffff;--sunk:#eef0f3;--bubble:#eceff4;--line:#e1e4e9;--line2:#eceef2;--ink:#15181c;--ink2:#4a525c;--ink3:#737b86;--acc:#1f5eff;--accSoft:#e7eeff;--accInk:#1747c9;--ok:#177a43;--okSoft:#e3f3e9;--warn:#9a5700;--warnSoft:#fcefd8;--err:#bf3228;--errSoft:#fbe6e4;--web:#0d6e84;--webSoft:#dff1f5;--hl:#fff1b3;--hl2:#fff8d6;color-scheme:light}
+[data-theme=dark]{--bg:#141619;--side:#101214;--panel:#1a1d21;--sunk:#23272c;--bubble:#262a30;--line:#2d3238;--line2:#23272c;--ink:#e7e9ec;--ink2:#adb4bc;--ink3:#7f8791;--acc:#4a7dff;--accSoft:#1b2851;--accInk:#9ab7ff;--ok:#5cc98a;--okSoft:#14301f;--warn:#f0b04a;--warnSoft:#3a2a10;--err:#f07a70;--errSoft:#3d1a18;--web:#55c6da;--webSoft:#0f2d33;--hl:#4a3f12;--hl2:#2e2912;color-scheme:dark}
+
+:root{--sans:var(--font-plex-sans),'IBM Plex Sans',system-ui,sans-serif;--mono:var(--font-plex-mono),'IBM Plex Mono',ui-monospace,monospace}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--accInk)}a:hover{color:var(--acc)}
+button,input,select,textarea{font:inherit;color:inherit}
+button:disabled{cursor:not-allowed}
+.mono{font-family:var(--mono)}
+.tnum{font-variant-numeric:tabular-nums}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+
+/* Hover states (the design's style-hover="…" attributes). !important because the base style is inline. */
+.hv-sunk:hover{background:var(--sunk)!important}
+.hv-side:hover{background:var(--side)!important}
+.hv-bubble:hover{background:var(--bubble)!important}
+.hv-accSoft:hover{background:var(--accSoft)!important}
+.hv-ink:hover{color:var(--ink)!important}
+.hv-acc:hover{color:var(--acc)!important}
+.hv-line:hover{border-color:var(--ink3)!important}
+.hv-accbg:hover{background:var(--accInk)!important}
+.hv-under:hover{text-decoration:underline!important}
+.hv-err:hover{color:var(--err)!important}
+.hv-errSoft:hover{background:var(--errSoft)!important}
+
+.scroll-thin{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--acc);outline-offset:-1px}

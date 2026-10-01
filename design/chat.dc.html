@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>Chat · Estimates AI Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('eaa-theme')||'light'}catch(e){}</script>
+<style>
+:root,[data-theme=light]{--bg:#fcfcfd;--side:#f5f6f8;--panel:#ffffff;--sunk:#eef0f3;--bubble:#eceff4;--line:#e1e4e9;--line2:#eceef2;--ink:#15181c;--ink2:#4a525c;--ink3:#737b86;--acc:#1f5eff;--accSoft:#e7eeff;--accInk:#1747c9;--ok:#177a43;--okSoft:#e3f3e9;--warn:#9a5700;--warnSoft:#fcefd8;--err:#bf3228;--errSoft:#fbe6e4;--web:#0d6e84;--webSoft:#dff1f5;--hl:#fff1b3;--hl2:#fff8d6;color-scheme:light}
+[data-theme=dark]{--bg:#141619;--side:#101214;--panel:#1a1d21;--sunk:#23272c;--bubble:#262a30;--line:#2d3238;--line2:#23272c;--ink:#e7e9ec;--ink2:#adb4bc;--ink3:#7f8791;--acc:#4a7dff;--accSoft:#1b2851;--accInk:#9ab7ff;--ok:#5cc98a;--okSoft:#14301f;--warn:#f0b04a;--warnSoft:#3a2a10;--err:#f07a70;--errSoft:#3d1a18;--web:#55c6da;--webSoft:#0f2d33;--hl:#4a3f12;--hl2:#2e2912;color-scheme:dark}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--accInk)}a:hover{color:var(--acc)}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</helmet>
+<div style="height:100vh;display:flex;background:var(--bg);color:var(--ink);overflow:hidden;user-select:{{ userSelect }};">
+  <sc-if value="{{ showSidebar }}" hint-placeholder-val="{{ true }}">
+    <dc-import name="Sidebar" active="chat" collapsed="{{ sideCollapsed }}" current="{{ scen }}" mobile="{{ mobile }}" open="{{ drawer }}" on-close="{{ closeDrawer }}" hint-size="264px,100%"></dc-import>
+  </sc-if>
+  <div ref="{{ rowRef }}" style="flex:1;min-width:0;display:flex;position:relative;">
+
+    <sc-if value="{{ showRail }}" hint-placeholder-val="{{ false }}">
+      <div style="width:64px;flex:none;display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 0;border-right:1px solid var(--line);background:var(--side);">
+        <span style="width:28px;height:28px;border-radius:7px;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;">E</span>
+        <button onClick="{{ exitFull }}" title="Back to split view" style="width:48px;padding:8px 0;border:0;border-radius:10px;background:transparent;color:var(--ink2);font:inherit;font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;" style-hover="background:var(--sunk);"><span style="font-size:15px;">‹</span>Chat</button>
+        <button onClick="{{ toggleFloat }}" title="Ask the agent" style="width:48px;padding:8px 0;border:0;border-radius:10px;background:{{ floatBg }};color:{{ floatFg }};font:inherit;font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:15px;">↑</span>Ask</button>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ showConvo }}" hint-placeholder-val="{{ true }}">
+      <main style="width:{{ convoW }};flex:{{ convoFlex }};min-width:0;display:flex;flex-direction:column;">
+        <header style="height:56px;flex:none;display:flex;align-items:center;gap:10px;padding:0 16px 0 {{ headPad }};">
+          <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}"><button onClick="{{ openDrawer }}" title="Menu" style="width:40px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--ink);font-size:18px;cursor:pointer;">☰</button></sc-if>
+          <div style="min-width:0;display:flex;align-items:center;gap:8px;">
+            <span style="font-weight:500;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ title }}</span>
+            <span style="flex:none;display:inline-flex;align-items:center;height:17px;padding:0 5px;border:1px solid var(--line);border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:var(--ink2);">{{ lang }}</span>
+          </div>
+          <div style="flex:1;"></div>
+          <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}"><span style="font-size:12px;color:var(--ink3);white-space:nowrap;">Conversation cost <span style="font-family:'IBM Plex Mono',monospace;">{{ convCost }}</span></span></sc-if>
+        </header>
+        <div ref="{{ scRef }}" style="flex:1;min-height:0;overflow:auto;">
+          <div style="max-width:760px;margin:0 auto;padding:12px 20px 32px;display:flex;flex-direction:column;gap:28px;">
+            <sc-for list="{{ msgs }}" as="m" hint-placeholder-count="3">
+              <dc-import name="Message" style="width:100%;min-width:0;" msg="{{ m }}" on-open-doc="{{ openDoc }}" on-action="{{ onAction }}" hint-size="100%,80px"></dc-import>
+            </sc-for>
+          </div>
+        </div>
+        <div style="flex:none;padding:0 16px 16px;">
+          <div style="max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:8px;">
+            <sc-if value="{{ blocked }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--err);border-radius:12px;background:var(--errSoft);font-size:13.5px;">
+                <span style="width:20px;height:20px;flex:none;border-radius:50%;background:var(--err);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">!</span>
+                <span style="flex:1;">Monthly AI budget reached ($300 of $300). New messages are paused until 1 October or until an admin raises the budget. You can still open and download estimates.</span>
+                <a href="settings-usage.dc.html?b=over" style="flex:none;font-weight:600;">Budget settings</a>
+              </div>
+            </sc-if>
+            <dc-import name="Composer" disabled="{{ blocked }}" focus-key="{{ focusKey }}" add-chip="{{ addChip }}" on-send="{{ onSend }}" on-open-doc="{{ openDoc }}" placeholder="{{ placeholder }}" hint-size="100%,112px"></dc-import>
+          </div>
+        </div>
+      </main>
+    </sc-if>
+
+    <sc-if value="{{ showDivider }}" hint-placeholder-val="{{ false }}">
+      <div onMouseDown="{{ startDrag }}" title="Drag to resize" style="width:9px;flex:none;margin:0 -4px;z-index:5;cursor:col-resize;display:flex;justify-content:center;" style-hover="background:var(--accSoft);">
+        <div style="width:1px;height:100%;background:{{ dividerLine }};"></div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ showViewer }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;min-width:0;display:flex;position:{{ viewerPos }};inset:0;z-index:{{ viewerZ }};">
+        <dc-import name="DocViewer" style="flex:1;min-width:0;width:100%;height:100%;display:flex;" docs="{{ vDocs }}" active="{{ vActive }}" jump="{{ vJump }}" mode="{{ vMode }}" on-close="{{ closeViewer }}" on-mode="{{ setMode }}" on-ask="{{ askDoc }}" hint-size="100%,100%"></dc-import>
+        <sc-if value="{{ showFloat }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;left:24px;bottom:24px;width:min(640px,calc(100% - 48px));z-index:20;display:flex;flex-direction:column;gap:8px;">
+            <sc-if value="{{ floatReply }}" hint-placeholder-val="{{ false }}">
+              <div style="max-height:260px;overflow:auto;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:0 12px 40px rgba(16,24,40,0.18);">
+                <dc-import name="Message" msg="{{ floatReply }}" on-open-doc="{{ openDoc }}" hint-size="100%,60px"></dc-import>
+              </div>
+            </sc-if>
+            <div style="box-shadow:0 12px 40px rgba(16,24,40,0.18);border-radius:18px;">
+              <dc-import name="Composer" focus-key="{{ focusKey }}" add-chip="{{ addChip }}" on-send="{{ onSend }}" on-open-doc="{{ openDoc }}" placeholder="Ask about this document" hint-size="100%,112px"></dc-import>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;scenario&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;result&quot;,&quot;working&quot;,&quot;permission&quot;,&quot;worklist&quot;,&quot;vague&quot;,&quot;emailfail&quot;,&quot;nothing&quot;,&quot;blocked&quot;],&quot;default&quot;:&quot;result&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+const U1 = { role: 'user', text: 'Here is an estimate for our client in Denmark. Use /data-center.xlsx, norms.docx as references.', chips: [{ name: 'Tilbud_Hal_B.xlsx', doc: 'blank', role: 'Blank · 4 sheets' }] };
+const WEB = [['EL',42,'Stikkontakt 2-stik m/jord, IP44',80,148,'elektroimportoeren.dk'],['EL',57,'Gruppetavle 12 moduler, rum 3.12',2,4200,'solar.dk'],['EL',80,'Overspændingsbeskyttelse type 2, rum 1.19',7,1480,'lemu.dk'],['EL',95,'Kabelbakke 300 mm, galv., føring plan 3',395,212,'ao.dk'],['EL',271,'Installationsrør 20 mm, føring plan 3',445,6.2,'elektroimportoeren.dk'],['EL',314,'Installationsrør 20 mm, føring plan 1',240,6.2,'lemu.dk'],['EL',464,'Installationsrør 20 mm, føring plan 1',60,6.2,'lemu.dk'],['EL',531,'Kabel NOIKLX 3G1,5, føring plan 3',165,9.8,'elektroimportoeren.dk'],['EL',532,'Kabelstige 500 mm, føring plan 3',120,368,'elektroimportoeren.dk'],['EL',547,'Kabel PFXP 5G10, føring plan 3',475,88,'ao.dk'],['EL',585,'Potentialudligningsskinne, rum 3.03',6,380,'solar.dk'],['EL',640,'Jordleder 16 mm², føring plan 2',535,22,'elektroimportoeren.dk'],['EL',705,'Jordleder 16 mm², føring plan 1',400,22,'ao.dk'],['ELT',3,'Datakabel Cat6A U/FTP, føring plan 2',325,11.5,'lemu.dk'],['ELT',184,'Røgdetektor, adresserbar, rum 2.09',41,640,'elektroimportoeren.dk'],['ELT',222,'Dørautomatik, tilslutning, rum 2.24',46,960,'lemu.dk'],['Belysning',78,'Bevægelsessensor 360°, rum 2.06',57,520,'ao.dk']];
+const dkk = (n, d = 0) => 'DKK ' + n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+const WEBROWS = WEB.map(w => ({ p: w[2], up: dkk(w[4], 2), q: String(w[3]), t: dkk(Math.round(w[3] * w[4])), src: w[5], loc: `${w[0]} · row ${w[1]}`, sheet: w[0], n: w[1] }));
+const step = (label, meta, status = 'done', extra = {}) => ({ label, meta, status, ...extra });
+const DONE_STEPS = { kind: 'steps', status: 'done', title: 'Finished 8 steps', elapsed: '3 min 52 s', items: [
+  step('Read blank Tilbud_Hal_B.xlsx', '4 sheets'), step('Found 4 electrical sheets', 'EL · ELT · Belysning · Tavler'), step('Matched 1,224 rows against references', '1,207 matched'),
+  step('Priced labour with norms.docx', 'DKK 430/h'), step('Priced materials from data-center.xlsx', '1,190 rows'), step('Asked to use Price list 2025.xlsx', 'Denied'),
+  step('Searched suppliers for 18 missing prices', '17 found'), step('Checked totals and flagged 10 rows', '10 rows') ] };
+const RESULT = [
+  U1,
+  { role: 'agent', tier: 'Advanced', cost: '$0.61', tokIn: 412880, tokOut: 38420, blocks: [
+    DONE_STEPS,
+    { kind: 'card', card: 'permission', state: 'denied' },
+    { kind: 'text', paras: [
+      ['The estimate is ready. The total is ', { b: 'DKK 45,626,345' }, ' excl. VAT: labour DKK 17,526,628 (38%) and material DKK 28,099,717 (62%).'],
+      ['I priced 1,223 of 1,224 rows. ', { b: '10 rows need your attention' }, ': 9 where the quantity or the reference match is uncertain, and ', { row: 'ELT · row 130', sheet: 'ELT', n: 130 }, ' where I found no price anywhere.'],
+      ['References used: ', { file: 'data-center.xlsx', doc: 'datacenter' }, ', ', { file: 'norms.docx', doc: 'norms' }, ' and 17 prices from supplier websites. The estimate is in Danish, like the blank.'] ] },
+    { kind: 'doc', doc: 'estimate', name: 'Estimate_Denmark_Hal_B.xlsx', lang: 'DA', meta: '4 sheets · 1,248 rows · generated today 10:45' },
+    { kind: 'web', rows: WEBROWS, show: 5 } ] },
+  { role: 'user', text: 'Why is row 58 so expensive?' },
+  { role: 'agent', tier: 'Fast', cost: '$0.01', tokIn: 6210, tokOut: 184, blocks: [{ kind: 'text', paras: [
+    [{ row: 'EL · row 58', sheet: 'EL', n: 58 }, ' is the 36-module distribution board, DKK 17,480 in total. The material price, DKK 14,900, comes from ', { file: 'data-center.xlsx', doc: 'datacenter' }, ' (EL row 103, the same board in Hal A). Labour is 6.0 h from ', { file: 'norms.docx', doc: 'norms' }, ' at DKK 430/h.'],
+    ['It stands out because it is the only 36-module board. The other 9 boards are 12-module boards at DKK 4,200 each, for example ', { row: 'EL · row 57', sheet: 'EL', n: 57 }, '.'] ] }] },
+  { role: 'user', text: 'Which norm did you use for cable trays?' },
+  { role: 'agent', tier: 'Fast', cost: '$0.01', tokIn: 5980, tokOut: 121, blocks: [{ kind: 'text', paras: [
+    ['0.30 h per metre for 300 mm tray, brackets included, from section 1 of ', { file: 'norms.docx', doc: 'norms' }, '. I used it in 74 rows, for example ', { row: 'EL · row 95', sheet: 'EL', n: 95 }, '.'] ] }] },
+  { role: 'user', text: 'Send me this estimate' },
+  { role: 'agent', tier: 'Fast', cost: '$0.00', tokIn: 1420, tokOut: 36, blocks: [{ kind: 'card', card: 'email', state: 'done' }] },
+];
+const SC = {
+  result: { title: 'Data center Hal B, Aarhus', lang: 'DA', cost: '$0.63', msgs: RESULT },
+  blocked: { title: 'Data center Hal B, Aarhus', lang: 'DA', cost: '$0.63', msgs: RESULT, blocked: true },
+  resultA: { title: 'Data center Hal A, Aarhus', lang: 'DA', cost: '$0.58', msgs: RESULT }, resultT: { title: 'Tallinn retail unit', lang: 'EN', cost: '$0.22', msgs: RESULT }, resultP: { title: 'Priedes iela 4, apartments', lang: 'LV', cost: '$0.31', msgs: RESULT },
+  working: { title: 'Office fit-out, Teikums', lang: 'LV', cost: '$0.18', msgs: [
+    { role: 'user', text: 'Fill this blank for the Teikums office. Use Braila 23 and Stundu normas as references.', chips: [{ name: 'Tāme_Teikums.xlsx', doc: 'teikums', role: 'Blank · 3 sheets' }] },
+    { role: 'agent', live: true, blocks: [{ kind: 'text', paras: [['I’m filling the blank in Latvian, using ', { file: 'Braila 23.xlsx', doc: 'braila' }, ' for prices and structure.']] }, { kind: 'steps', live: true }] }] },
+  permission: { title: 'Warehouse lighting retrofit', lang: 'EN', cost: '$0.09', msgs: [
+    { role: 'user', text: 'Price this lighting retrofit. Use Skolegade 14 as the reference.', chips: [{ name: 'Warehouse_B_blank.xlsx', role: 'Blank · 2 sheets' }] },
+    { role: 'agent', tier: 'Standard', cost: '$0.09', tokIn: 48200, tokOut: 2310, blocks: [
+      { kind: 'steps', status: 'waiting', title: 'Paused: waiting for your answer', elapsed: '1 min 06 s', items: [step('Read blank Warehouse_B_blank.xlsx', '2 sheets · 214 rows'), step('Matched 206 rows against Skolegade 14.xlsx', '203 matched'), step('Priced labour', 'EUR 24/h'), step('Pricing materials', '188 / 206', 'warn', { sub: '3 socket rows have no price in the selected references' })] },
+      { kind: 'card', card: 'permission', state: 'pending' } ] }] },
+  worklist: { title: 'Braila 24, 2nd floor', lang: 'LV', cost: '$0.04', msgs: [
+    { role: 'user', text: 'Need an estimate for Braila 24, 2nd floor: 80 sockets, 40 switches, 1 distribution board 36 modules, 600 m cable 3x1.5.' },
+    { role: 'agent', tier: 'Advanced', cost: '$0.04', tokIn: 18400, tokOut: 640, blocks: [
+      { kind: 'text', paras: [['I’ll generate a new estimate from this work list. Before I price anything, here is the structure I’d use.']] },
+      { kind: 'card', card: 'structure', state: 'pending' } ] }] },
+  vague: { title: 'Kontor 400 m², Vesterbro', lang: 'DA', cost: '$0.02', msgs: [
+    { role: 'user', text: 'Need a price for an office job, about 400 m².' },
+    { role: 'agent', tier: 'Standard', cost: '$0.02', tokIn: 9100, tokOut: 310, blocks: [{ kind: 'card', card: 'clarify', state: 'pending' }] }] },
+  emailfail: { title: 'Skolegade 14, renovering', lang: 'DA', cost: '$0.41', msgs: [
+    { role: 'agent', tier: 'Advanced', cost: '$0.39', tokIn: 288100, tokOut: 24800, blocks: [{ kind: 'text', paras: [['The estimate is ready. Total ', { b: 'DKK 1,904,220' }, ' excl. VAT, all 932 rows priced from references.']] }, { kind: 'doc', doc: 'skolegade', name: 'Estimate_Skolegade_14.xlsx', lang: 'DA', meta: '3 sheets · 932 rows · generated 25 Sep' }] },
+    { role: 'user', text: 'Send me this estimate' },
+    { role: 'agent', tier: 'Fast', cost: '$0.00', tokIn: 1380, tokOut: 34, blocks: [{ kind: 'card', card: 'email', state: 'failed' }] }] },
+  nothing: { title: 'Ķekava private house', lang: 'LV', cost: '$0.27', msgs: [
+    { role: 'user', text: 'Fill the Ķekava blank. Use Priedes iela 4 as the reference.', chips: [{ name: 'Kekava_tame.xlsx', doc: 'kekava', role: 'Blank · 2 sheets' }] },
+    { role: 'agent', tier: 'Standard', cost: '$0.27', tokIn: 164300, tokOut: 12800, blocks: [
+      { kind: 'steps', status: 'done', title: 'Finished 6 steps', elapsed: '2 min 31 s', items: [step('Read blank Kekava_tame.xlsx', '2 sheets'), step('Matched 300 rows against Priedes iela 4.xlsx', '298 matched'), step('Priced labour and materials', '299 rows'), step('Searched suppliers for: Zibensaizsardzības komplekts ar uztvērēju', 'Nothing found', 'warn', { sub: 'Checked elektrika.lv, 220.lv, onninen.lv, ksenukai.lv' }), step('Checked totals', 'EUR 38,412.60'), step('Flagged 1 row', '1 row')] },
+      { kind: 'text', paras: [['The estimate is ready except for one row. Total so far ', { b: 'EUR 38,412.60' }, ' excl. VAT.']] },
+      { kind: 'note', tone: 'warn', paras: [['I couldn’t find a price for “Zibensaizsardzības komplekts ar uztvērēju” in your references or on four supplier sites. The row is empty and marked as needing attention. Type a price in the viewer, or send me a supplier link and I’ll use it.']] },
+      { kind: 'doc', doc: 'kekava', name: 'Tāme_Kekava.xlsx', lang: 'LV', meta: '2 sheets · 304 rows · 1 row needs attention' } ] }] },
+};
+const LIVE = [['Read blank Tāme_Teikums.xlsx', '3 sheets · 304 rows'], ['Found 2 electrical sheets', 'EL · ELT'], ['Matched 300 rows against Braila 23.xlsx', '291 matched'], ['Priced labour with Stundu normas 2024.pdf', 'EUR 24/h'], ['Pricing materials', null], ['Checking totals and flagging rows', null]];
+class Component extends DCLogic {
+  state = { scen: 'result', msgs: [], mobile: false, drawer: false, viewer: null, split: 0.44, drag: false, focusKey: 0, addChip: null, float: false, floatReply: null, live: { n: 0, sec: 252 } };
+  componentDidMount() {
+    const q = new URLSearchParams(location.search), s = q.get('s') || this.props.scenario || 'result', sc = SC[s] || SC.result;
+    const mobile = window.innerWidth < 760;
+    const doc = q.get('doc'); let viewer = null;
+    if (doc) viewer = { docs: [doc], active: doc, mode: mobile ? 'sheet' : (q.get('mode') || 'split'), jump: q.get('row') ? { doc, sheet: q.get('sheet') || 'EL', row: +q.get('row'), key: 1 } : null };
+    this.setState({ scen: SC[s] ? s : 'result', msgs: sc.msgs, mobile, viewer }, () => this.toBottom());
+    this._rs = () => this.setState({ mobile: window.innerWidth < 760 }); window.addEventListener('resize', this._rs);
+    if (s === 'working') this._iv = setInterval(() => this.tick(), 300);
+    this._mm = e => { if (!this.state.drag || !this._row) return; const r = this._row.getBoundingClientRect(); this.setState({ split: Math.min(0.7, Math.max(0.26, (e.clientX - r.left) / r.width)) }); };
+    this._mu = () => this.state.drag && this.setState({ drag: false });
+    window.addEventListener('mousemove', this._mm); window.addEventListener('mouseup', this._mu);
+  }
+  componentWillUnmount() { clearInterval(this._iv); window.removeEventListener('resize', this._rs); window.removeEventListener('mousemove', this._mm); window.removeEventListener('mouseup', this._mu); }
+  tick() {
+    const l = this.state.live, n = Math.min(300, l.n + 3 + Math.floor(Math.random() * 4)), sec = l.sec + 0.3;
+    this.setState({ live: { n, sec } });
+    if (n >= 300 && !l.fin) { clearInterval(this._iv); this.setState({ live: { n, sec, fin: true } }); this.push({ role: 'agent', tier: 'Standard', cost: '$0.24', tokIn: 151200, tokOut: 11900, blocks: [{ kind: 'text', paras: [['Done. Total ', { b: 'EUR 36,904.10' }, ' excl. VAT. 4 rows need your attention.']] }, { kind: 'doc', doc: 'teikums', name: 'Tāme_Teikums.xlsx', lang: 'LV', meta: '2 sheets · 304 rows · generated just now' }] }); }
+  }
+  liveSteps() {
+    const { n, sec, fin } = this.state.live; const mm = Math.floor(sec / 60), ss = String(Math.floor(sec % 60)).padStart(2, '0');
+    const items = LIVE.map((s, i) => i < 4 ? step(s[0], s[1]) : i === 4 ? step(s[0], `${n} / 300`, fin ? 'done' : 'active', fin ? {} : { pct: Math.round(n / 3), sub: `Now: ${['Kabelis NYM-J 3x2,5, 2. stāvs', 'Rozete divvietīga ar zemējumu, IP44', 'Kabeļu renes 200 mm', 'Sadales kārba IP65'][Math.floor(n / 23) % 4]}` }) : step(s[0], fin ? '4 rows' : '', fin ? 'done' : 'todo'));
+    return { kind: 'steps', status: fin ? 'done' : 'running', title: fin ? 'Finished 6 steps' : 'Working…', elapsed: `${mm} min ${ss} s`, items };
+  }
+  toBottom() { let i = 0; clearInterval(this._tb); this._tb = setInterval(() => { const el = this._sc; if (el) el.scrollTop = el.scrollHeight; if (++i > 16) clearInterval(this._tb); }, 150); }
+  push(m) { this.setState(s => ({ msgs: [...s.msgs, m] }), () => this.toBottom()); }
+  later(ms, fn) { setTimeout(fn, ms); }
+  reply(text) {
+    const t = text.toLowerCase();
+    if (/send|email|mail/.test(t)) return { role: 'agent', tier: 'Fast', cost: '$0.00', tokIn: 1400, tokOut: 30, blocks: [{ kind: 'card', card: 'email', state: 'done' }] };
+    const m = t.match(/row\s*(\d+)/);
+    if (m) return { role: 'agent', tier: 'Fast', cost: '$0.01', tokIn: 6100, tokOut: 150, blocks: [{ kind: 'text', paras: [[{ row: `EL · row ${m[1]}`, sheet: 'EL', n: +m[1] }, ' is priced from ', { file: 'data-center.xlsx', doc: 'datacenter' }, ' with the labour norm from ', { file: 'norms.docx', doc: 'norms' }, '. Open the row to see the matched reference row and confidence.']] }] };
+    return { role: 'agent', tier: 'Fast', cost: '$0.01', tokIn: 4200, tokOut: 90, blocks: [{ kind: 'text', paras: [['Got it. Tell me which rows or sheet this applies to, or click a row in the estimate and ask about it.']] }] };
+  }
+  renderVals() {
+    const st = this.state, sc = SC[st.scen] || SC.result, v = st.viewer, mobile = st.mobile;
+    const mode = v ? (mobile ? 'sheet' : v.mode) : null, full = mode === 'full', split = mode === 'split';
+    const msgs = st.msgs.map(m => m.live ? { ...m, blocks: m.blocks.map(b => b.live ? this.liveSteps() : b) } : m);
+    return {
+      scen: st.scen, mobile, notMobile: !mobile, drawer: st.drawer, openDrawer: () => this.setState({ drawer: true }), closeDrawer: () => this.setState({ drawer: false }),
+      showSidebar: !full, sideCollapsed: split ? true : undefined, showRail: full, showConvo: !full && !(mobile && v), showDivider: split, showViewer: !!v,
+      convoW: split ? `${st.split * 100}%` : 'auto', convoFlex: split ? 'none' : '1', headPad: mobile ? '6px' : '20px',
+      viewerPos: mobile ? 'fixed' : 'relative', viewerZ: mobile ? 50 : 1, dividerLine: st.drag ? 'var(--acc)' : 'var(--line)', userSelect: st.drag ? 'none' : 'auto',
+      title: sc.title, lang: sc.lang, convCost: sc.cost, blocked: !!sc.blocked,
+      placeholder: v ? 'Ask about this document…' : 'Reply to the agent. Type / to add reference files.',
+      msgs,
+      rowRef: this._rowCb || (this._rowCb = el => { this._row = el; }),
+      scRef: this._scCb || (this._scCb = el => { if (el && el !== this._sc) { this._sc = el; this._stick = Date.now() + 2500; const ro = new ResizeObserver(() => { if (Date.now() < this._stick) el.scrollTop = el.scrollHeight; }); if (el.firstElementChild) ro.observe(el.firstElementChild); } }),
+      openDoc: j => { if (!j || !j.doc) return; const cur = this.state.viewer; const docs = cur ? (cur.docs.includes(j.doc) ? cur.docs : [...cur.docs, j.doc]) : [j.doc];
+        this.setState({ viewer: { docs, active: j.doc, mode: cur ? cur.mode : 'split', jump: j.row ? { ...j, key: j.key || Date.now() } : (cur && cur.jump) } }); },
+      closeViewer: () => this.setState({ viewer: null, float: false }),
+      setMode: m => this.setState(s => ({ viewer: { ...s.viewer, mode: m }, float: false })),
+      exitFull: () => this.setState(s => ({ viewer: { ...s.viewer, mode: 'split' }, float: false })),
+      vDocs: v ? v.docs : [], vActive: v ? v.active : null, vJump: v ? v.jump : null, vMode: mode || 'split',
+      startDrag: e => { e.preventDefault(); this.setState({ drag: true }); },
+      askDoc: d => { const chip = { name: d.name, doc: d.id, role: 'Reference' }; if (this.state.viewer && this.state.viewer.mode === 'full' && !mobile) this.setState({ float: true }); if (mobile) this.setState({ viewer: null }); this.setState(s => ({ addChip: chip, focusKey: s.focusKey + 1 })); },
+      showFloat: full && st.float, floatReply: st.floatReply, toggleFloat: () => this.setState(s => ({ float: !s.float })),
+      floatBg: st.float ? 'var(--accSoft)' : 'transparent', floatFg: st.float ? 'var(--accInk)' : 'var(--ink2)',
+      focusKey: st.focusKey, addChip: st.addChip,
+      onSend: (text, chips) => {
+        this.push({ role: 'user', text, chips });
+        const r = this.reply(text || 'file');
+        this.later(900, () => { if (full) this.setState({ floatReply: r }); this.push(r); });
+      },
+      onAction: (kind, a) => {
+        if (kind === 'permission' && a === 'deny') this.later(500, () => this.push({ role: 'agent', tier: 'Standard', cost: '$0.05', tokIn: 21800, tokOut: 900, blocks: [{ kind: 'steps', status: 'done', title: 'Searched 3 supplier sites', elapsed: '38 s', items: [step('Searching suppliers for: 2-gang socket, IP44…', '3 found'), step('Priced 3 rows from the web', 'EL 42, 51, 52')] }, { kind: 'text', paras: [['Found prices for all 3 rows on lemu.dk and solar.dk. They are marked as web-sourced in the estimate so you can check them.']] }] }));
+        if (kind === 'permission' && a === 'allow') this.later(500, () => this.push({ role: 'agent', tier: 'Standard', cost: '$0.03', tokIn: 14100, tokOut: 620, blocks: [{ kind: 'text', paras: [['Thanks. I used ', { b: 'Price list 2025.xlsx' }, ' for the 3 socket rows and finished pricing. All 206 rows are priced.']] }] }));
+        if (kind === 'structure' && a === 'generate') this.later(500, () => this.push({ role: 'agent', tier: 'Advanced', cost: '$0.21', tokIn: 98200, tokOut: 14100, blocks: [{ kind: 'steps', status: 'done', title: 'Finished 5 steps', elapsed: '1 min 48 s', items: [step('Built sheets EL and ELT from Braila 23.xlsx', '4 sections'), step('Added 4 work items', '4 rows'), step('Priced labour', 'EUR 24/h'), step('Priced materials', '4 rows'), step('Checked totals', 'EUR 4,318.40')] }, { kind: 'text', paras: [['Done. Total ', { b: 'EUR 4,318.40' }, ' excl. VAT, in Latvian like Braila 23.']] }, { kind: 'doc', doc: 'braila24', name: 'Tāme_Braila_24.xlsx', lang: 'LV', meta: '2 sheets · generated just now' }] }));
+        if (kind === 'structure' && a === 'change') this.later(400, () => this.push({ role: 'agent', tier: 'Fast', cost: '$0.00', tokIn: 900, tokOut: 40, blocks: [{ kind: 'text', paras: [['What should change? For example: add a sheet for low-voltage work, split cables by floor, or leave out labour.']] }] }));
+        if (kind === 'clarify') this.later(500, () => this.push({ role: 'agent', tier: 'Advanced', cost: '$0.04', tokIn: 17800, tokOut: 700, blocks: [{ kind: 'text', paras: [['Thanks. That’s enough to start. I’ll propose a structure next.']] }, { kind: 'card', card: 'structure', state: 'pending' }] }));
+        if (kind === 'steps' && a === 'stop') { clearInterval(this._iv); }
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>

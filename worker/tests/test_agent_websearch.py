@@ -73,3 +73,24 @@ def test_find_price_skips_disallowed_pages_and_logs_search(monkeypatch):
     assert got["url"] == "https://b.example/nym-3x15" and got["unit_price"] == 0.95
     row = db.fetchone("SELECT kind, units FROM usage WHERE run_id=%s", (run["id"],))
     assert row["kind"] == "web_search" and row["units"] == 1
+
+
+def test_search_api_outage_returns_none_instead_of_failing_the_run(monkeypatch):
+    fx.migrate()
+    calls = []
+
+    class Down(search.Provider):
+        name = "fake"
+
+        def configured(self):
+            return True
+
+        def search(self, q, count=5):
+            calls.append(q)
+            raise httpx.ConnectError("[Errno -2] Name or service not known")
+
+    monkeypatch.setattr(search, "provider", lambda: Down())
+    monkeypatch.setattr(search.time, "sleep", lambda s: None)
+    from app.llm.ledger import Ctx
+    assert search.find_price("Kabelis NYM 3x1,5 cena", ctx=Ctx()) is None
+    assert len(calls) == 2  # one retry for a transient error, then give up quietly

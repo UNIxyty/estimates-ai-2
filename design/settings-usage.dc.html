@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('eaa-theme')||'light'}catch(e){}</script>
+<style>
+:root,[data-theme=light]{--bg:#fcfcfd;--side:#f5f6f8;--panel:#ffffff;--sunk:#eef0f3;--bubble:#eceff4;--line:#e1e4e9;--line2:#eceef2;--ink:#15181c;--ink2:#4a525c;--ink3:#737b86;--acc:#1f5eff;--accSoft:#e7eeff;--accInk:#1747c9;--ok:#177a43;--okSoft:#e3f3e9;--warn:#9a5700;--warnSoft:#fcefd8;--err:#bf3228;--errSoft:#fbe6e4;--web:#0d6e84;--webSoft:#dff1f5;--hl:#fff1b3;--hl2:#fff8d6;color-scheme:light}
+[data-theme=dark]{--bg:#141619;--side:#101214;--panel:#1a1d21;--sunk:#23272c;--bubble:#262a30;--line:#2d3238;--line2:#23272c;--ink:#e7e9ec;--ink2:#adb4bc;--ink3:#7f8791;--acc:#4a7dff;--accSoft:#1b2851;--accInk:#9ab7ff;--ok:#5cc98a;--okSoft:#14301f;--warn:#f0b04a;--warnSoft:#3a2a10;--err:#f07a70;--errSoft:#3d1a18;--web:#55c6da;--webSoft:#0f2d33;--hl:#4a3f12;--hl2:#2e2912;color-scheme:dark}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--accInk)}a:hover{color:var(--acc)}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+<title>Usage & costs · Settings</title></helmet>
+<div style="height:100vh;display:flex;background:var(--bg);color:var(--ink);overflow:hidden;">
+  <dc-import name="Sidebar" active="settings" mobile="{{ mobile }}" open="{{ drawer }}" on-close="{{ closeDrawer }}" hint-size="264px,100%"></dc-import>
+  <main style="flex:1;min-width:0;overflow:auto;">
+    <div style="max-width:1120px;margin:0 auto;padding:24px 20px 48px;display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start;">
+      <div style="width:200px;flex:none;display:flex;flex-direction:column;gap:8px;">
+        <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}"><button onClick="{{ openDrawer }}" style="width:40px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--ink);font-size:18px;cursor:pointer;">☰</button></sc-if>
+        <dc-import name="SettingsNav" active="usage" hint-size="200px,200px"></dc-import>
+      </div>
+      <div style="flex:1;min-width:300px;display:flex;flex-direction:column;gap:20px;">
+        <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;">
+          <div style="flex:1;display:flex;flex-direction:column;gap:2px;"><h1 style="margin:0;font-size:22px;font-weight:600;">Usage & costs</h1><span style="font-size:14px;color:var(--ink2);">What the agent costs to run, for the whole company. September 2026.</span></div>
+          <div style="display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;">
+            <sc-for list="{{ states }}" as="b" hint-placeholder-count="3"><a href="{{ b.href }}" style="height:32px;display:inline-flex;align-items:center;padding:0 12px;font-size:12.5px;text-decoration:none;color:{{ b.fg }};background:{{ b.bg }};">{{ b.label }}</a></sc-for>
+          </div>
+        </div>
+
+        <sc-if value="{{ near }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--warn);border-radius:12px;background:var(--warnSoft);font-size:14px;flex-wrap:wrap;">
+            <span style="width:20px;height:20px;flex:none;border-radius:50%;background:var(--warn);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">!</span>
+            <span style="flex:1;min-width:240px;"><b style="font-weight:600;">86% of this month's budget is used</b> ($258.30 of $300). At this pace you'll reach the limit around 27 September. Admins were emailed at 80%.</span>
+            <button onClick="{{ focusBudget }}" style="height:32px;padding:0 12px;border:1px solid var(--warn);border-radius:8px;background:var(--panel);color:var(--warn);font:inherit;font-size:13px;font-weight:600;cursor:pointer;">Adjust budget</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ over }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--err);border-radius:12px;background:var(--errSoft);font-size:14px;flex-wrap:wrap;">
+            <span style="width:20px;height:20px;flex:none;border-radius:50%;background:var(--err);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">!</span>
+            <span style="flex:1;min-width:240px;"><b style="font-weight:600;">Budget exceeded. New requests are paused.</b> $300.00 of $300 used. Estimators can still open and download estimates. Requests resume on 1 October, or now if you raise the budget.</span>
+            <button onClick="{{ focusBudget }}" style="height:32px;padding:0 12px;border:0;border-radius:8px;background:var(--err);color:#fff;font:inherit;font-size:13px;font-weight:600;cursor:pointer;">Raise budget</button>
+          </div>
+        </sc-if>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+          <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:4px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);">
+              <span style="font-size:12.5px;color:var(--ink3);">{{ k.label }}</span>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:500;letter-spacing:-0.02em;">{{ k.v }}</span>
+              <span style="font-size:12.5px;color:var(--ink2);">{{ k.sub }}</span>
+              <sc-if value="{{ k.bar }}" hint-placeholder-val="{{ false }}"><div style="height:6px;border-radius:3px;background:var(--sunk);overflow:hidden;margin-top:4px;"><div style="height:100%;width:{{ k.pct }}%;background:{{ k.barC }};"></div></div></sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><span style="font-size:14.5px;font-weight:600;">Daily spend</span><span style="font-size:12.5px;color:var(--ink3);">{{ tip }}</span>
+            <span style="margin-left:auto;display:flex;gap:12px;font-size:12px;color:var(--ink2);"><span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--acc);"></span>Advanced</span><span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--acc);opacity:0.55;"></span>Standard</span><span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--acc);opacity:0.25;"></span>Fast</span></span>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:3px;height:180px;padding-top:8px;border-bottom:1px solid var(--line);position:relative;">
+            <div style="position:absolute;left:0;right:0;bottom:{{ avgPos }}%;border-top:1px dashed var(--ink3);opacity:0.6;"></div>
+            <sc-for list="{{ days }}" as="d" hint-placeholder-count="30">
+              <div onMouseEnter="{{ d.hover }}" style="flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;cursor:default;opacity:{{ d.op }};">
+                <div style="height:{{ d.a }}%;background:var(--acc);border-radius:2px 2px 0 0;"></div>
+                <div style="height:{{ d.s }}%;background:var(--acc);opacity:0.55;"></div>
+                <div style="height:{{ d.f }}%;background:var(--acc);opacity:0.25;"></div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;"><span>1 Sep</span><span>8 Sep</span><span>15 Sep</span><span>22 Sep</span><span>30 Sep</span></div>
+          <div style="font-size:12px;color:var(--ink3);">Dashed line: daily average ($4.76). Weekend days are lighter.</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;">
+          <div style="display:flex;flex-direction:column;gap:12px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);">
+            <span style="font-size:14.5px;font-weight:600;">By model tier</span>
+            <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px;"><div style="width:4%;background:var(--acc);opacity:0.25;"></div><div style="width:43%;background:var(--acc);opacity:0.55;"></div><div style="flex:1;background:var(--acc);"></div></div>
+            <sc-for list="{{ tiers }}" as="t" hint-placeholder-count="3">
+              <div style="display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line2);font-size:13.5px;"><span><b style="font-weight:600;">{{ t.name }}</b> <span style="color:var(--ink3);font-size:12.5px;">{{ t.msgs }}</span></span><span style="color:var(--ink3);font-size:12.5px;">{{ t.pct }}</span><span style="font-family:'IBM Plex Mono',monospace;">{{ t.cost }}</span></div>
+            </sc-for>
+            <a href="settings-routing.dc.html" style="font-size:13px;font-weight:500;">Change which tasks use which tier ›</a>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);">
+            <span style="font-size:14.5px;font-weight:600;margin-bottom:6px;">Most expensive conversations</span>
+            <sc-for list="{{ top }}" as="c" hint-placeholder-count="6">
+              <a href="{{ c.href }}" style="display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line2);text-decoration:none;color:var(--ink);font-size:13.5px;" style-hover="color:var(--accInk);"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.t }}</span><span style="font-size:12px;color:var(--ink3);">{{ c.by }}</span><span style="font-family:'IBM Plex Mono',monospace;min-width:52px;text-align:right;">{{ c.cost }}</span></a>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);">
+          <span style="font-size:14.5px;font-weight:600;">By conversation, this month</span>
+          <div style="overflow-x:auto;"><div style="min-width:560px;">
+            <div style="display:grid;grid-template-columns:minmax(200px,1fr) 70px 70px 80px 80px 80px;font-size:12px;font-weight:600;color:var(--ink2);border-bottom:1px solid var(--line);"><div style="padding:8px 0;">Conversation</div><div style="padding:8px;text-align:right;">Msgs</div><div style="padding:8px;text-align:right;">Fast</div><div style="padding:8px;text-align:right;">Standard</div><div style="padding:8px;text-align:right;">Advanced</div><div style="padding:8px 0 8px 8px;text-align:right;">Total</div></div>
+            <sc-for list="{{ convs }}" as="c" hint-placeholder-count="8">
+              <div style="display:grid;grid-template-columns:minmax(200px,1fr) 70px 70px 80px 80px 80px;font-size:13px;border-bottom:1px solid var(--line2);font-variant-numeric:tabular-nums;"><div style="padding:8px 0;">{{ c.t }}</div><div style="padding:8px;text-align:right;color:var(--ink2);">{{ c.m }}</div><div style="padding:8px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink2);">{{ c.f }}</div><div style="padding:8px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink2);">{{ c.s }}</div><div style="padding:8px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink2);">{{ c.a }}</div><div style="padding:8px 0 8px 8px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;">{{ c.tot }}</div></div>
+            </sc-for>
+          </div></div>
+        </div>
+
+        <div ref="{{ budgetRef }}" style="display:flex;flex-direction:column;gap:16px;padding:18px;border:1px solid {{ budgetLine }};border-radius:14px;background:var(--panel);">
+          <div style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:14.5px;font-weight:600;">Monthly budget</span><span style="font-size:13px;color:var(--ink2);">Applies to the whole company. Resets on the 1st.</span></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:500;">Budget per month<span style="display:flex;align-items:center;height:40px;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:0 12px;gap:6px;"><span style="color:var(--ink3);">$</span><input value="{{ budget }}" onChange="{{ onBudget }}" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:14px;"></input></span></label>
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:500;">Email admins at <b style="font-family:'IBM Plex Mono',monospace;">{{ thr }}%</b><input type="range" min="50" max="100" step="5" value="{{ thr }}" onChange="{{ onThr }}" style="accent-color:var(--acc);height:40px;"></input></label>
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:500;">When the budget runs out<select value="{{ onOut }}" onChange="{{ onOutChange }}" style="height:40px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;font-size:13.5px;"><option value="pause">Pause all new requests</option><option value="fast">Allow Fast tier only</option><option value="warn">Keep working, only warn</option></select></label>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;"><button onClick="{{ save }}" style="height:38px;padding:0 16px;border:0;border-radius:10px;background:var(--acc);color:#fff;font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;">Save budget</button><span style="font-size:13px;color:var(--ok);">{{ saved }}</span></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const DAYS = [3.1,5.8,6.4,4.9,7.2,1.1,0.6,5.3,6.9,8.4,5.1,6.2,1.4,0.4,4.8,7.7,9.6,6.3,5.5,0.9,0.7,6.1,5.4,7.9,8.8,6.6,1.3,0.5,5.2,4.1];
+class Component extends DCLogic {
+  state = { b: '', mobile: false, drawer: false, hover: null, budget: '300', thr: 80, onOut: 'pause', saved: '', flash: false };
+  componentDidMount() { this.setState({ b: new URLSearchParams(location.search).get('b') || '', mobile: window.innerWidth < 760 }); this._rs = () => this.setState({ mobile: window.innerWidth < 760 }); window.addEventListener('resize', this._rs); }
+  componentWillUnmount() { window.removeEventListener('resize', this._rs); }
+  renderVals() {
+    const s = this.state, near = s.b === 'near', over = s.b === 'over';
+    const month = over ? 300 : near ? 258.3 : 142.8, scale = month / 142.8, max = Math.max(...DAYS) * scale * 1.1;
+    const days = DAYS.map((v, i) => { const x = v * scale, h = x / max * 100; return { a: h * 0.53, s: h * 0.43, f: h * 0.04, op: s.hover === null || s.hover === i ? 1 : 0.5, hover: () => this.setState({ hover: i }) }; });
+    const avg = month / 30;
+    return {
+      mobile: s.mobile, drawer: s.drawer, openDrawer: () => this.setState({ drawer: true }), closeDrawer: () => this.setState({ drawer: false }),
+      near, over, states: [['', 'Normal'], ['near', 'Near limit'], ['over', 'Exceeded']].map(([k, l]) => ({ label: l, href: 'settings-usage.dc.html' + (k ? '?b=' + k : ''), bg: s.b === k ? 'var(--sunk)' : 'var(--panel)', fg: s.b === k ? 'var(--ink)' : 'var(--ink2)' })),
+      kpis: [['Today', '$' + (4.12 * scale).toFixed(2), '18 messages · 3 conversations'], ['This week', '$' + (31.4 * scale).toFixed(2), '126 messages · 11 conversations'], ['This month', '$' + month.toFixed(2), `of $300 budget · ${Math.round(month / 3)}%`, true]].map(k => ({ label: k[0], v: k[1], sub: k[2], bar: !!k[3], pct: Math.min(100, month / 3), barC: over ? 'var(--err)' : near ? 'var(--warn)' : 'var(--acc)' })),
+      days, avgPos: avg / max * 100, tip: s.hover === null ? 'Hover a day to see its total' : `${s.hover + 1} Sep: $${(DAYS[s.hover] * scale).toFixed(2)}`,
+      tiers: [['Advanced', '84 messages', '53%', 0.53], ['Standard', '612 messages', '43%', 0.43], ['Fast', '1,240 messages', '4%', 0.04]].map(t => ({ name: t[0], msgs: t[1], pct: t[2], cost: '$' + (month * t[3]).toFixed(2) })),
+      top: [['Data center Hal B, Aarhus', 'MK', 0.63], ['Data center Hal A, Aarhus', 'MK', 0.58], ['Skolegade 14, renovering', 'AB', 0.41], ['Hellerup school, gym hall', 'JL', 0.36], ['Priedes iela 4, apartments', 'AB', 0.31], ['Ķekava private house', 'MK', 0.27]].map(c => ({ t: c[0], by: c[1], cost: '$' + (c[2] * scale).toFixed(2), href: 'chat.dc.html?s=result' })),
+      convs: [['Data center Hal B, Aarhus', 14, 0.03, 0.12, 0.48], ['Data center Hal A, Aarhus', 11, 0.02, 0.10, 0.46], ['Skolegade 14, renovering', 9, 0.01, 0.07, 0.33], ['Hellerup school, gym hall', 12, 0.02, 0.09, 0.25], ['Priedes iela 4, apartments', 8, 0.01, 0.12, 0.18], ['Ķekava private house', 6, 0.01, 0.26, 0.00], ['Office fit-out, Teikums', 3, 0.00, 0.18, 0.00], ['Braila 24, 2nd floor', 2, 0.00, 0.00, 0.04]].map(c => ({ t: c[0], m: c[1], f: '$' + (c[2] * scale).toFixed(2), s: '$' + (c[3] * scale).toFixed(2), a: '$' + (c[4] * scale).toFixed(2), tot: '$' + ((c[2] + c[3] + c[4]) * scale).toFixed(2) })),
+      budgetRef: this._bc || (this._bc = el => { this._b = el; }), budgetLine: s.flash ? 'var(--acc)' : 'var(--line)',
+      focusBudget: () => { if (this._b) this._b.parentElement.closest('main').scrollTop = this._b.offsetTop - 20; this.setState({ flash: true }); setTimeout(() => this.setState({ flash: false }), 1200); },
+      budget: s.budget, onBudget: e => this.setState({ budget: e.target.value.replace(/[^\d]/g, ''), saved: '' }), thr: s.thr, onThr: e => this.setState({ thr: +e.target.value, saved: '' }),
+      onOut: s.onOut, onOutChange: e => this.setState({ onOut: e.target.value, saved: '' }), save: () => this.setState({ saved: 'Saved. Applies immediately.' }), saved: s.saved,
+    };
+  }
+}
+</script>
+</body>
+</html>

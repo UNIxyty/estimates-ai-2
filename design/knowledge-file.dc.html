@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('eaa-theme')||'light'}catch(e){}</script>
+<style>
+:root,[data-theme=light]{--bg:#fcfcfd;--side:#f5f6f8;--panel:#ffffff;--sunk:#eef0f3;--bubble:#eceff4;--line:#e1e4e9;--line2:#eceef2;--ink:#15181c;--ink2:#4a525c;--ink3:#737b86;--acc:#1f5eff;--accSoft:#e7eeff;--accInk:#1747c9;--ok:#177a43;--okSoft:#e3f3e9;--warn:#9a5700;--warnSoft:#fcefd8;--err:#bf3228;--errSoft:#fbe6e4;--web:#0d6e84;--webSoft:#dff1f5;--hl:#fff1b3;--hl2:#fff8d6;color-scheme:light}
+[data-theme=dark]{--bg:#141619;--side:#101214;--panel:#1a1d21;--sunk:#23272c;--bubble:#262a30;--line:#2d3238;--line2:#23272c;--ink:#e7e9ec;--ink2:#adb4bc;--ink3:#7f8791;--acc:#4a7dff;--accSoft:#1b2851;--accInk:#9ab7ff;--ok:#5cc98a;--okSoft:#14301f;--warn:#f0b04a;--warnSoft:#3a2a10;--err:#f07a70;--errSoft:#3d1a18;--web:#55c6da;--webSoft:#0f2d33;--hl:#4a3f12;--hl2:#2e2912;color-scheme:dark}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--accInk)}a:hover{color:var(--acc)}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+<title>File · Knowledge base</title></helmet>
+<div style="height:100vh;display:flex;background:var(--bg);color:var(--ink);overflow:hidden;">
+  <dc-import name="Sidebar" active="knowledge" collapsed="{{ sideCollapsed }}" mobile="{{ mobile }}" open="{{ drawer }}" on-close="{{ closeDrawer }}" hint-size="264px,100%"></dc-import>
+  <main style="flex:1;min-width:0;overflow:auto;">
+    <div style="max-width:960px;margin:0 auto;padding:20px 24px 48px;display:flex;flex-direction:column;gap:18px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink3);">
+        <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}"><button onClick="{{ openDrawer }}" style="width:36px;height:36px;border:0;border-radius:10px;background:transparent;color:var(--ink);font-size:18px;cursor:pointer;">☰</button></sc-if>
+        <a href="knowledge.dc.html" style="color:var(--ink2);text-decoration:none;">Knowledge base</a><span>›</span><span>{{ f.name }}</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;">
+        <span style="width:44px;height:52px;flex:none;border-radius:8px;background:{{ f.kindBg }};color:{{ f.kindFg }};display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;">{{ f.kind }}</span>
+        <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:6px;">
+          <h1 style="margin:0;font-size:24px;font-weight:600;letter-spacing:-0.01em;">{{ f.name }}</h1>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink2);">
+            <span>{{ f.type }}</span>
+            <span style="display:inline-flex;align-items:center;height:17px;padding:0 5px;border:1px solid var(--line);border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:var(--ink2);">{{ f.lang }}</span>
+            <span style="display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:11px;font-size:12px;font-weight:500;color:{{ sfg }};background:{{ sbg }};"><span style="width:6px;height:6px;border-radius:50%;background:currentColor;"></span>{{ statusLabel }}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button onClick="{{ openDoc }}" style="height:38px;padding:0 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;" style-hover="background:var(--sunk);">Open document</button>
+          <button onClick="{{ reanalyse }}" style="height:38px;padding:0 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;" style-hover="background:var(--sunk);">Re-analyse</button>
+          <button onClick="{{ askDelete }}" style="height:38px;padding:0 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--err);font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;" style-hover="background:var(--errSoft);">Delete</button>
+        </div>
+      </div>
+
+      <sc-if value="{{ running }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:var(--accSoft);font-size:13.5px;">{{ spinner }}<span style="flex:1;">{{ runLabel }}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accInk);">{{ runPct }}%</span></div>
+      </sc-if>
+      <sc-if value="{{ failed }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border:1px solid var(--err);border-radius:14px;background:var(--errSoft);">
+          <div style="font-size:15px;font-weight:600;color:var(--err);">Analysis failed</div>
+          <div style="font-size:14px;line-height:1.55;">The PDF is password-protected, so the agent couldn't read it. Nothing from this file is being used. Remove the password (or export a copy without one) and upload it again.</div>
+          <div style="display:flex;gap:8px;"><button onClick="{{ reanalyse }}" style="height:36px;padding:0 14px;border:0;border-radius:9px;background:var(--acc);color:#fff;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;">Try again</button><label style="height:36px;display:inline-flex;align-items:center;padding:0 14px;border:1px solid var(--line);border-radius:9px;background:var(--panel);font-size:13.5px;cursor:pointer;">Replace file<input type="file" style="display:none;"></input></label></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ ok }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto;">
+          <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+            <button onClick="{{ t.go }}" style="flex:none;height:40px;padding:0 14px;border:0;border-bottom:2px solid {{ t.line }};margin-bottom:-1px;background:transparent;color:{{ t.fg }};font:inherit;font-size:14px;font-weight:{{ t.fw }};cursor:pointer;">{{ t.label }}<span style="margin-left:6px;font-size:12px;color:var(--ink3);">{{ t.count }}</span></button>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ tOverview }}" hint-placeholder-val="{{ true }}">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--line);">
+            <sc-for list="{{ facts }}" as="x" hint-placeholder-count="6"><div style="padding:14px 16px;background:var(--panel);display:flex;flex-direction:column;gap:3px;"><span style="font-size:12px;color:var(--ink3);">{{ x.k }}</span><span style="font-size:14px;">{{ x.v }}</span></div></sc-for>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="font-size:14px;font-weight:600;">Used in 9 estimates</div>
+            <div style="border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden;">
+              <sc-for list="{{ usedIn }}" as="u" hint-placeholder-count="4"><a href="{{ u.href }}" style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line2);text-decoration:none;color:var(--ink);font-size:14px;" style-hover="background:var(--side);"><span style="flex:1;">{{ u.t }}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:var(--ink2);border:1px solid var(--line);border-radius:4px;padding:0 5px;">{{ u.l }}</span><span style="font-size:12.5px;color:var(--ink3);min-width:60px;text-align:right;">{{ u.d }}</span></a></sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ tStructure }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:14px;color:var(--ink2);">The agent found 3 sheets. New estimates built from this file copy this layout.</div>
+          <sc-for list="{{ sheets }}" as="s" hint-placeholder-count="3">
+            <div style="border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden;">
+              <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line2);"><span style="font-family:'IBM Plex Mono',monospace;font-weight:600;">{{ s.name }}</span><span style="font-size:12.5px;color:var(--ink3);">{{ s.rows }}</span></div>
+              <sc-for list="{{ s.secs }}" as="x" hint-placeholder-count="3"><div style="display:flex;gap:12px;padding:9px 16px;border-bottom:1px solid var(--line2);font-size:13.5px;"><span style="flex:1;">{{ x.t }}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink3);">{{ x.r }}</span></div></sc-for>
+            </div>
+          </sc-for>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="font-size:14px;font-weight:600;">Column layout</div>
+            <div style="border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden;">
+              <sc-for list="{{ columns }}" as="c" hint-placeholder-count="8"><div style="display:grid;grid-template-columns:36px 150px minmax(0,1fr);gap:8px;padding:9px 16px;border-bottom:1px solid var(--line2);font-size:13.5px;align-items:center;"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink3);">{{ c.col }}</span><span style="font-weight:500;">{{ c.h }}</span><span style="color:var(--ink2);">{{ c.m }}</span></div></sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ tLogic }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:14px;color:var(--ink2);">How this file calculates prices, in the agent's words. Edit anything that's wrong; the agent uses your version.</div>
+          <sc-for list="{{ logic }}" as="l" hint-placeholder-count="4">
+            <div style="display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);">
+              <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:14px;font-weight:600;">{{ l.title }}</span><sc-if value="{{ l.edited }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:600;color:var(--accInk);background:var(--accSoft);padding:1px 6px;border-radius:4px;">Edited</span></sc-if><button onClick="{{ l.toggle }}" style="margin-left:auto;height:28px;padding:0 10px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink);font:inherit;font-size:12.5px;cursor:pointer;">{{ l.btn }}</button></div>
+              <sc-if value="{{ l.view }}" hint-placeholder-val="{{ true }}"><div style="font-size:14.5px;line-height:1.6;">{{ l.text }}</div></sc-if>
+              <sc-if value="{{ l.editing }}" hint-placeholder-val="{{ false }}"><textarea value="{{ l.text }}" onChange="{{ l.onEdit }}" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--acc);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;font-size:14.5px;line-height:1.55;resize:vertical;outline:0;"></textarea></sc-if>
+              <sc-if value="{{ l.numbers }}" hint-placeholder-val="{{ false }}"><div style="display:flex;gap:6px;flex-wrap:wrap;"><sc-for list="{{ l.numbers }}" as="n" hint-placeholder-count="2"><span style="height:26px;display:inline-flex;align-items:center;gap:6px;padding:0 10px;border-radius:13px;background:var(--sunk);font-size:12.5px;"><span style="color:var(--ink3);">{{ n.k }}</span><b style="font-family:'IBM Plex Mono',monospace;font-weight:600;">{{ n.v }}</b></span></sc-for></div></sc-if>
+            </div>
+          </sc-for>
+        </sc-if>
+
+        <sc-if value="{{ tNumbers }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <div style="flex:1;min-width:200px;display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);"><span style="color:var(--ink3);font-size:13px;">Search</span><input value="{{ nq }}" onChange="{{ onNq }}" placeholder="Item" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:inherit;font-size:14px;"></input></div>
+            <span style="font-size:12.5px;color:var(--ink3);">Showing {{ numCount }} of 1,238 saved numbers</span>
+            <button onClick="{{ addNum }}" style="height:36px;padding:0 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px;cursor:pointer;">+ Add row</button>
+          </div>
+          <div style="border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow-x:auto;">
+            <div style="min-width:680px;">
+              <div style="display:grid;grid-template-columns:minmax(220px,1fr) 70px 96px 120px 150px 40px;font-size:12px;font-weight:600;color:var(--ink2);border-bottom:1px solid var(--line);"><div style="padding:10px 16px;">Item</div><div style="padding:10px 8px;">Unit</div><div style="padding:10px 8px;text-align:right;">Norm, h</div><div style="padding:10px 8px;text-align:right;">Unit price, kr</div><div style="padding:10px 8px;">Found in</div><div></div></div>
+              <sc-for list="{{ nums }}" as="n" hint-placeholder-count="10">
+                <div style="display:grid;grid-template-columns:minmax(220px,1fr) 70px 96px 120px 150px 40px;align-items:center;border-bottom:1px solid var(--line2);background:{{ n.bg }};font-size:13.5px;">
+                  <div style="padding:4px 8px;"><input value="{{ n.d }}" onChange="{{ n.onD }}" style="width:100%;height:32px;padding:0 8px;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--ink);font:inherit;" style-focus="border-color:var(--acc);background:var(--bg);outline:0;"></input></div>
+                  <div style="padding:4px 8px;color:var(--ink2);">{{ n.u }}</div>
+                  <div style="padding:4px 4px;"><input value="{{ n.norm }}" onChange="{{ n.onNorm }}" style="width:100%;height:32px;padding:0 8px;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:12.5px;text-align:right;" style-focus="border-color:var(--acc);background:var(--bg);outline:0;"></input></div>
+                  <div style="padding:4px 4px;"><input value="{{ n.p }}" onChange="{{ n.onP }}" style="width:100%;height:32px;padding:0 8px;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:12.5px;text-align:right;" style-focus="border-color:var(--acc);background:var(--bg);outline:0;"></input></div>
+                  <div style="padding:4px 8px;font-size:12.5px;color:var(--ink3);">{{ n.src }}</div>
+                  <div><button onClick="{{ n.del }}" title="Delete" style="width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--ink3);font-size:15px;cursor:pointer;" style-hover="background:var(--errSoft);color:var(--err);">×</button></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <sc-if value="{{ dirty }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:var(--accSoft);font-size:13.5px;"><span style="flex:1;">{{ dirtyLabel }}</span><button onClick="{{ saveNums }}" style="height:32px;padding:0 14px;border:0;border-radius:8px;background:var(--acc);color:#fff;font:inherit;font-weight:600;font-size:13px;cursor:pointer;">Save changes</button></div></sc-if>
+        </sc-if>
+
+        <sc-if value="{{ tNotes }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:14px;color:var(--ink2);">Short notes the agent wrote for itself while reading this file. They guide how it uses the file.</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <sc-for list="{{ notes }}" as="n" hint-placeholder-count="5">
+              <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);">
+                <span style="flex:none;margin-top:2px;font-size:11px;font-weight:600;color:{{ n.byFg }};background:{{ n.byBg }};padding:1px 6px;border-radius:4px;">{{ n.by }}</span>
+                <sc-if value="{{ n.view }}" hint-placeholder-val="{{ true }}"><span style="flex:1;font-size:14.5px;line-height:1.55;">{{ n.t }}</span></sc-if>
+                <sc-if value="{{ n.editing }}" hint-placeholder-val="{{ false }}"><textarea value="{{ n.t }}" onChange="{{ n.onEdit }}" rows="2" style="flex:1;padding:8px 10px;border:1px solid var(--acc);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;font-size:14.5px;resize:vertical;outline:0;"></textarea></sc-if>
+                <button onClick="{{ n.toggle }}" style="flex:none;height:28px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--accInk);font:inherit;font-size:13px;cursor:pointer;">{{ n.btn }}</button>
+                <button onClick="{{ n.del }}" style="flex:none;height:28px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--ink3);font:inherit;font-size:13px;cursor:pointer;" style-hover="color:var(--err);">Delete</button>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start;">
+            <textarea value="{{ newNote }}" onChange="{{ onNewNote }}" rows="2" placeholder="Add a note for the agent, e.g. “Never add freight to cable prices.”" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;font-size:14px;resize:vertical;outline-color:var(--acc);"></textarea>
+            <button onClick="{{ addNote }}" style="height:40px;padding:0 16px;border:0;border-radius:10px;background:var(--acc);color:#fff;font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;">Add note</button>
+          </div>
+        </sc-if>
+      </sc-if>
+    </div>
+  </main>
+
+  <sc-if value="{{ viewer }}" hint-placeholder-val="{{ false }}">
+    <div style="width:{{ viewerW }};flex:none;border-left:1px solid var(--line);display:flex;position:{{ viewerPos }};inset:0;z-index:50;">
+      <dc-import name="DocViewer" style="flex:1;min-width:0;height:100%;display:flex;" docs="{{ vDocs }}" active="{{ vActive }}" mode="{{ vMode }}" on-close="{{ closeViewer }}" on-mode="{{ setMode }}" hint-size="100%,100%"></dc-import>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ confirm }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:80;background:rgba(10,12,16,0.45);display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div style="width:100%;max-width:420px;display:flex;flex-direction:column;gap:12px;padding:22px;border-radius:16px;background:var(--panel);box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <div style="font-size:17px;font-weight:600;">Delete {{ f.name }}?</div>
+        <div style="font-size:14px;color:var(--ink2);line-height:1.55;">The agent will forget the 1,238 prices and norms and 7 notes it learned from this file. Estimates you've already made won't change.</div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;"><button onClick="{{ cancelDelete }}" style="height:38px;padding:0 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;cursor:pointer;">Cancel</button><a href="knowledge.dc.html" style="height:38px;display:inline-flex;align-items:center;padding:0 14px;border-radius:10px;background:var(--err);color:#fff;text-decoration:none;font-weight:600;font-size:14px;">Delete file</a></div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const META = {
+  datacenter: ['data-center.xlsx', 'Priced estimate (reference)', 'DA', 'XLSX'], braila: ['Braila 23.xlsx', 'Priced estimate (reference)', 'LV', 'XLSX'],
+  norms: ['norms.docx', 'Hourly norms', 'EN', 'DOCX'], solar: ['Solar prisliste 2025.pdf', 'Price list', 'DA', 'PDF'], broken: ['Tilbud_scan_2019.pdf', 'Other', 'LV', 'PDF'],
+};
+const LOGIC = [
+  ['Labour', 'Labour = Antal × Norm t × DKK 430 per hour. The same rate is used on every sheet.', [['Hourly rate', 'DKK 430'], ['Sheets', 'EL, ELT, Belysning']]],
+  ['Material', 'Material = Antal × unit price. Prices are net supplier prices; no markup is added in this file.', [['Markup', 'None']]],
+  ['Subtotals', 'Each section ends with an “I alt” row that sums labour and material for that section. The sheet total is the sum of section subtotals.', null],
+  ['Contribution margin', 'An 8% margin is added once, on the summary sheet, not per row.', [['Margin', '8%']]],
+];
+const NUMS = [['Stikkontakt 2-stik m/jord, IP44', 'stk', '0,45', '148,00', 'EL row 44'], ['Stikkontakt 1-stik m/jord', 'stk', '0,35', '64,00', 'EL row 51'], ['Afbryder 1-polet, indbygning', 'stk', '0,35', '96,00', 'EL row 58'], ['Korrespondanceafbryder', 'stk', '0,40', '118,00', 'EL row 60'], ['Samledåse IP65', 'stk', '0,20', '38,00', 'EL row 73'], ['Gruppetavle 36 moduler', 'stk', '6,00', '14.900,00', 'EL row 103'], ['Gruppetavle 12 moduler', 'stk', '3,00', '4.200,00', 'EL row 109'], ['Fejlstrømsafbryder 4P 40A 30mA', 'stk', '0,50', '1.185,00', 'EL row 117'], ['Kabel NOIKLX 3G1,5', 'm', '0,06', '9,80', 'EL row 224'], ['Kabel NOIKLX 3G2,5', 'm', '0,07', '13,40', 'EL row 231'], ['Kabelbakke 300 mm, galv.', 'm', '0,30', '212,00', 'EL row 260'], ['LED panel 60×60, 4000K', 'stk', '0,60', '412,00', 'Belysning row 8']];
+const NOTES = [['Material prices include delivery to site. Don’t add freight.', 'Agent'], ['Cable lengths are rounded up to the nearest 5 m.', 'Agent'], ['Rows marked “Option” in column L are excluded from totals.', 'Agent'], ['Section 3 has two subtotal rows; only the second one counts.', 'Agent'], ['The hourly rate went from DKK 410 to 430 in March 2026. Use 430.', 'You']];
+const TABS = [['overview', 'Overview'], ['structure', 'Structure'], ['logic', 'Calculation logic'], ['numbers', 'Saved numbers', '1,238'], ['notes', 'Agent notes']];
+class Component extends DCLogic {
+  state = { id: 'datacenter', tab: 'overview', mobile: false, drawer: false, run: null, confirm: false, viewer: null, logic: LOGIC.map(l => ({ text: l[1], editing: false, edited: false })), nums: NUMS.map((n, i) => ({ i, d: n[0], u: n[1], norm: n[2], p: n[3], src: n[4], ch: false })), dirty: 0, nq: '', notes: NOTES.map((n, i) => ({ i, t: n[0], by: n[1], editing: false })), newNote: '' };
+  componentDidMount() { const q = new URLSearchParams(location.search); this.setState({ id: META[q.get('f')] ? q.get('f') : 'datacenter', tab: q.get('tab') || 'overview', mobile: window.innerWidth < 760 }); this._rs = () => this.setState({ mobile: window.innerWidth < 760 }); window.addEventListener('resize', this._rs); }
+  componentWillUnmount() { window.removeEventListener('resize', this._rs); clearInterval(this._iv); }
+  reanalyse() { clearInterval(this._iv); this.setState({ run: { pct: 0 } }); this._iv = setInterval(() => { const p = (this.state.run ? this.state.run.pct : 0) + 12; if (p >= 100) { clearInterval(this._iv); this.setState({ run: null }); } else this.setState({ run: { pct: p } }); }, 400); }
+  renderVals() {
+    const s = this.state, m = META[s.id], failed = s.id === 'broken', k = m[3] === 'PDF' ? ['var(--err)', 'var(--errSoft)'] : m[3] === 'DOCX' ? ['var(--accInk)', 'var(--accSoft)'] : ['var(--ok)', 'var(--okSoft)'];
+    const v = s.viewer, mode = v ? (s.mobile ? 'sheet' : v.mode) : 'split', p = s.run ? s.run.pct : 0;
+    const setNum = (i, f, val) => this.setState(st => ({ nums: st.nums.map(n => n.i === i ? { ...n, [f]: val, ch: true } : n), dirty: st.dirty + (st.nums.find(n => n.i === i).ch ? 0 : 1) }));
+    const nq = s.nq.toLowerCase(), nums = s.nums.filter(n => !nq || n.d.toLowerCase().includes(nq));
+    return {
+      mobile: s.mobile, drawer: s.drawer, openDrawer: () => this.setState({ drawer: true }), closeDrawer: () => this.setState({ drawer: false }), sideCollapsed: v ? true : undefined,
+      f: { name: m[0], type: m[1], lang: m[2], kind: m[3], kindFg: k[0], kindBg: k[1] },
+      statusLabel: failed ? 'Failed' : s.run ? 'Analysing' : 'Analysed', sfg: failed ? 'var(--err)' : s.run ? 'var(--accInk)' : 'var(--ok)', sbg: failed ? 'var(--errSoft)' : s.run ? 'var(--accSoft)' : 'var(--okSoft)',
+      failed, ok: !failed, running: !!s.run, runPct: p, runLabel: p < 30 ? 'Reading the file again…' : p < 70 ? 'Analysing structure and prices…' : 'Comparing with what it learned before…',
+      spinner: React.createElement('span', { style: { width: 16, height: 16, flex: 'none', borderRadius: '50%', border: '2px solid var(--panel)', borderTopColor: 'var(--acc)', animation: 'spin .8s linear infinite', boxSizing: 'border-box' } }),
+      reanalyse: () => this.reanalyse(), askDelete: () => this.setState({ confirm: true }), cancelDelete: () => this.setState({ confirm: false }), confirm: s.confirm,
+      openDoc: () => this.setState({ viewer: { docs: [s.id], active: s.id, mode: 'split' } }),
+      viewer: !!v, vDocs: v ? v.docs : [], vActive: v ? v.active : null, vMode: mode, viewerW: mode === 'full' || s.mobile ? '100%' : '56%', viewerPos: mode === 'full' || s.mobile ? 'fixed' : 'relative',
+      closeViewer: () => this.setState({ viewer: null }), setMode: md => this.setState({ viewer: { ...v, mode: md } }),
+      tabs: TABS.map(([key, label, count]) => ({ label, count: count || '', line: s.tab === key ? 'var(--acc)' : 'transparent', fg: s.tab === key ? 'var(--ink)' : 'var(--ink2)', fw: s.tab === key ? 600 : 400, go: () => this.setState({ tab: key }) })),
+      tOverview: s.tab === 'overview', tStructure: s.tab === 'structure', tLogic: s.tab === 'logic', tNumbers: s.tab === 'numbers', tNotes: s.tab === 'notes',
+      facts: [['Type', m[1]], ['Language', m[2] === 'DA' ? 'Danish' : m[2] === 'LV' ? 'Latvian' : 'English'], ['Status', 'Analysed 12 Sep, 14:02'], ['Uploaded by', 'Mārtiņš Kalniņš'], ['Size', '3.8 MB · 3 sheets · 932 rows'], ['Model used', 'Standard · $0.42']].map(x => ({ k: x[0], v: x[1] })),
+      usedIn: [['Data center Hal B, Aarhus', 'DA', 'Today', 'result'], ['Skolegade 14, renovering', 'DA', '25 Sep', 'emailfail'], ['Kontor 400 m², Vesterbro', 'DA', 'Yesterday', 'vague'], ['Data center Hal A, Aarhus', 'DA', '22 Sep', 'resultA']].map(u => ({ t: u[0], l: u[1], d: u[2], href: 'chat.dc.html?s=' + u[3] })),
+      sheets: [['EL', '640 rows', [['1 Installationsmateriel', 'rows 2–161'], ['2 Gruppetavler', 'rows 162–221'], ['3 Kabler og kabelføring', 'rows 222–641']]], ['ELT', '120 rows', [['1 Data og netværk', 'rows 2–81'], ['2 Brandalarm', 'rows 82–121']]], ['Belysning', '96 rows', [['1 Almen belysning', 'rows 2–71'], ['2 Nødbelysning', 'rows 72–97']]]].map(x => ({ name: x[0], rows: x[1], secs: x[2].map(y => ({ t: y[0], r: y[1] })) })),
+      columns: [['A', 'Nr.', 'Item number, e.g. 2.04'], ['B', 'Beskrivelse', 'Item description'], ['C', 'Enh.', 'Unit (stk, m)'], ['D', 'Antal', 'Quantity'], ['E', 'Norm t', 'Hours per unit'], ['F', 'Timer', 'Hours = Antal × Norm t'], ['G', 'Arbejde kr', 'Labour = Timer × hourly rate'], ['H', 'Mat./enh. kr', 'Material unit price'], ['I', 'Materiale kr', 'Material = Antal × unit price'], ['J', 'I alt kr', 'Row total = labour + material']].map(c => ({ col: c[0], h: c[1], m: c[2] })),
+      logic: LOGIC.map((l, i) => { const st = s.logic[i]; return { title: l[0], text: st.text, edited: st.edited, editing: st.editing, view: !st.editing, btn: st.editing ? 'Save' : 'Edit', numbers: l[2] ? l[2].map(n => ({ k: n[0], v: n[1] })) : null,
+        toggle: () => this.setState(x => ({ logic: x.logic.map((y, j) => j === i ? { ...y, editing: !y.editing } : y) })), onEdit: e => { const val = e.target.value; this.setState(x => ({ logic: x.logic.map((y, j) => j === i ? { ...y, text: val, edited: true } : y) })); } }; }),
+      nq: s.nq, onNq: e => this.setState({ nq: e.target.value }), numCount: nums.length,
+      nums: nums.map(n => ({ ...n, bg: n.ch ? 'var(--accSoft)' : 'transparent', onD: e => setNum(n.i, 'd', e.target.value), onNorm: e => setNum(n.i, 'norm', e.target.value), onP: e => setNum(n.i, 'p', e.target.value), del: () => this.setState(x => ({ nums: x.nums.filter(y => y.i !== n.i), dirty: x.dirty + 1 })) })),
+      addNum: () => this.setState(x => ({ nums: [{ i: Date.now(), d: '', u: 'stk', norm: '', p: '', src: 'Added by you', ch: true }, ...x.nums], dirty: x.dirty + 1 })),
+      dirty: s.dirty > 0, dirtyLabel: `${s.dirty} unsaved change${s.dirty === 1 ? '' : 's'}. The agent uses saved numbers only.`, saveNums: () => this.setState(x => ({ dirty: 0, nums: x.nums.map(n => ({ ...n, ch: false })) })),
+      notes: s.notes.map(n => ({ t: n.t, by: n.by === 'You' ? 'Your note' : 'Agent', byFg: n.by === 'You' ? 'var(--accInk)' : 'var(--ink2)', byBg: n.by === 'You' ? 'var(--accSoft)' : 'var(--sunk)', editing: n.editing, view: !n.editing, btn: n.editing ? 'Save' : 'Edit',
+        toggle: () => this.setState(x => ({ notes: x.notes.map(y => y.i === n.i ? { ...y, editing: !y.editing } : y) })), onEdit: e => { const val = e.target.value; this.setState(x => ({ notes: x.notes.map(y => y.i === n.i ? { ...y, t: val } : y) })); }, del: () => this.setState(x => ({ notes: x.notes.filter(y => y.i !== n.i) })) })),
+      newNote: s.newNote, onNewNote: e => this.setState({ newNote: e.target.value }), addNote: () => s.newNote.trim() && this.setState(x => ({ notes: [...x.notes, { i: Date.now(), t: x.newNote.trim(), by: 'You', editing: false }], newNote: '' })),
+    };
+  }
+}
+</script>
+</body>
+</html>

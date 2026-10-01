@@ -11,13 +11,15 @@ export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   if (PUBLIC.some((p) => pathname === p || pathname.startsWith(p + '/'))) return NextResponse.next();
   if (req.cookies.get('est_session')?.value) return NextResponse.next();
-  // Relative Location: behind cloudflared / in standalone Docker, nextUrl's host is the bind address
-  // (0.0.0.0 / localhost), not the public hostname.
+  // Next's middleware needs an absolute Location. Build it from the forwarded host/proto (cloudflared passes the
+  // public hostname), not nextUrl, whose host is the bind address (0.0.0.0 / localhost) in standalone Docker.
   const next = pathname && pathname !== '/' ? `?next=${encodeURIComponent(pathname + search)}` : '';
-  return new NextResponse(null, { status: 307, headers: { Location: `/login${next}` } });
+  const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || req.nextUrl.host;
+  const proto = (req.headers.get('x-forwarded-proto') || req.nextUrl.protocol.replace(':', '')).split(',')[0].trim();
+  return NextResponse.redirect(new URL(`/login${next}`, `${proto}://${host}`), 307);
 }
 
 export const config = {
   // Everything except API routes, Next internals and static files.
-  matcher: ['/((?!api/|_next/|favicon\\.ico|robots\\.txt).*)'],
+  matcher: ['/((?!api/|_next/|favicon\\.ico|icon\\.svg|robots\\.txt).*)'],
 };

@@ -130,6 +130,13 @@ def test_fill_blank_end_to_end_with_permission_flow(_env):
     ws3 = openpyxl.load_workbook(out["document"] and db.fetchone(
         "SELECT stored_path FROM documents WHERE id=%s", (doc["id"],))["stored_path"])["Elektroinstalācija"]
     assert ws3["G9"].value == 11.0 and ws3["K9"].value == pytest.approx(132.0)
+    # a quantity edit reaches the workbook too, and the reason is marked edited only once
+    out = documents.update_row(str(doc["id"]), "Elektroinstalācija", 9, {"qty": 13}, str(u["id"]))
+    assert float(out["row"]["total_material"]) == pytest.approx(143.0)
+    assert out["row"]["reason"].count("(edited by user)") == 1
+    d = db.fetchone("SELECT stored_path, layout FROM documents WHERE id=%s", (doc["id"],))
+    ws4 = openpyxl.load_workbook(d["stored_path"])["Elektroinstalācija"]
+    assert ws4[f'{d["layout"]["Elektroinstalācija"]["cols"]["qty"]}9'].value == 13
     # re-pricing never overwrites an edited row
     documents._upsert_rows  # noqa: B018
     assert db.fetchone("SELECT price_source FROM estimate_rows WHERE document_id=%s AND row_idx=9",

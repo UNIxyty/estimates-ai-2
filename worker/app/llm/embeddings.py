@@ -35,6 +35,8 @@ def embed_texts(texts: list[str], *, input_type: str = "search_document", file_i
         return None
     ctx = ctx or Ctx(user_id=user_id, file_id=file_id)
     model_id = model_id or settings.embedding_model
+    if llm.model_unavailable_reason(model_id):
+        return None
     clean = [(t or " ")[:2000] for t in texts]
     out: list[list[float]] = []
     try:
@@ -59,9 +61,15 @@ def embed_texts(texts: list[str], *, input_type: str = "search_document", file_i
     except llm.LLMUnavailable:
         return None
     except Exception as e:  # noqa: BLE001
-        if type(e).__name__ == "ClientError":
+        if llm._is_connection_error(e):
+            log.warning("embedding call failed, continuing without embeddings: %s", e)
+            return None
+        if llm._is_aws_error(e) and hasattr(e, "response"):
             code = e.response.get("Error", {}).get("Code", "")  # type: ignore[attr-defined]
-            if code in ("UnrecognizedClientException", "AccessDeniedException"):
+            if code == "AccessDeniedException":
+                llm._mark_model_unavailable(model_id, str(e))
+                return None
+            if code == "UnrecognizedClientException":
                 llm._mark_unavailable(str(e))
                 return None
         log.exception("embedding call failed")

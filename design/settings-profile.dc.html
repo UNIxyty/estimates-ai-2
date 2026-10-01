@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('eaa-theme')||'light'}catch(e){}</script>
+<style>
+:root,[data-theme=light]{--bg:#fcfcfd;--side:#f5f6f8;--panel:#ffffff;--sunk:#eef0f3;--bubble:#eceff4;--line:#e1e4e9;--line2:#eceef2;--ink:#15181c;--ink2:#4a525c;--ink3:#737b86;--acc:#1f5eff;--accSoft:#e7eeff;--accInk:#1747c9;--ok:#177a43;--okSoft:#e3f3e9;--warn:#9a5700;--warnSoft:#fcefd8;--err:#bf3228;--errSoft:#fbe6e4;--web:#0d6e84;--webSoft:#dff1f5;--hl:#fff1b3;--hl2:#fff8d6;color-scheme:light}
+[data-theme=dark]{--bg:#141619;--side:#101214;--panel:#1a1d21;--sunk:#23272c;--bubble:#262a30;--line:#2d3238;--line2:#23272c;--ink:#e7e9ec;--ink2:#adb4bc;--ink3:#7f8791;--acc:#4a7dff;--accSoft:#1b2851;--accInk:#9ab7ff;--ok:#5cc98a;--okSoft:#14301f;--warn:#f0b04a;--warnSoft:#3a2a10;--err:#f07a70;--errSoft:#3d1a18;--web:#55c6da;--webSoft:#0f2d33;--hl:#4a3f12;--hl2:#2e2912;color-scheme:dark}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--accInk)}a:hover{color:var(--acc)}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+<title>Profile · Settings</title></helmet>
+<div style="height:100vh;display:flex;background:var(--bg);color:var(--ink);overflow:hidden;">
+  <dc-import name="Sidebar" active="settings" mobile="{{ mobile }}" open="{{ drawer }}" on-close="{{ closeDrawer }}" hint-size="264px,100%"></dc-import>
+  <main style="flex:1;min-width:0;overflow:auto;">
+    <div style="max-width:1000px;margin:0 auto;padding:24px 20px 48px;display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start;">
+      <div style="width:200px;flex:none;display:flex;flex-direction:column;gap:8px;">
+        <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}"><button onClick="{{ openDrawer }}" style="width:40px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--ink);font-size:18px;cursor:pointer;">☰</button></sc-if>
+        <dc-import name="SettingsNav" active="profile" hint-size="200px,200px"></dc-import>
+      </div>
+      <div style="flex:1;min-width:300px;max-width:620px;display:flex;flex-direction:column;gap:20px;">
+        <h1 style="margin:0;font-size:22px;font-weight:600;">Profile</h1>
+        <div style="display:flex;flex-direction:column;gap:16px;padding:20px;border:1px solid var(--line);border-radius:14px;background:var(--panel);">
+          <label style="display:flex;flex-direction:column;gap:6px;font-size:13.5px;font-weight:500;">Name<input value="{{ name }}" onChange="{{ onName }}" style="height:42px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;font-weight:400;font-size:14.5px;outline-color:var(--acc);"></input></label>
+          <label style="display:flex;flex-direction:column;gap:6px;font-size:13.5px;font-weight:500;">Send estimates to<input value="{{ email }}" onChange="{{ onEmail }}" style="height:42px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;font-weight:400;font-size:14.5px;outline-color:var(--acc);"></input><span style="font-size:12.5px;font-weight:400;color:var(--ink3);">When you say “send me this estimate”, the file goes here. Your sign-in email stays m.kalnins@elektro.lv.</span></label>
+          <div style="display:flex;align-items:center;gap:10px;"><button onClick="{{ save }}" style="height:38px;padding:0 16px;border:0;border-radius:10px;background:var(--acc);color:#fff;font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;">Save</button><span style="font-size:13px;color:var(--ok);">{{ saved }}</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px;border:1px solid var(--line);border-radius:14px;background:var(--panel);">
+          <span style="font-size:15px;font-weight:600;">Theme</span>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
+            <sc-for list="{{ themes }}" as="t" hint-placeholder-count="3">
+              <button onClick="{{ t.pick }}" style="display:flex;flex-direction:column;gap:8px;padding:10px;border:1.5px solid {{ t.line }};border-radius:12px;background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px;cursor:pointer;text-align:left;">
+                <span style="height:56px;border-radius:8px;display:flex;overflow:hidden;border:1px solid var(--line);"><span style="width:30%;background:{{ t.side }};"></span><span style="flex:1;background:{{ t.main }};display:flex;flex-direction:column;justify-content:flex-end;padding:8px;gap:4px;"><span style="height:6px;width:60%;border-radius:3px;background:{{ t.bar }};"></span><span style="height:6px;width:40%;border-radius:3px;background:#1f5eff;"></span></span></span>
+                <span style="font-weight:{{ t.fw }};">{{ t.label }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px;padding:20px;border:1px solid var(--line);border-radius:14px;background:var(--panel);">
+          <span style="font-size:15px;font-weight:600;">Password</span>
+          <sc-if value="{{ pwClosed }}" hint-placeholder-val="{{ true }}"><div style="display:flex;align-items:center;gap:10px;"><span style="flex:1;font-size:13.5px;color:var(--ink2);">Last changed 12 June 2026</span><button onClick="{{ openPw }}" style="height:36px;padding:0 14px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px;cursor:pointer;">Change password</button></div></sc-if>
+          <sc-if value="{{ pwOpen }}" hint-placeholder-val="{{ false }}">
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:13.5px;font-weight:500;">Current password<input type="password" style="height:42px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;outline-color:var(--acc);"></input></label>
+            <label style="display:flex;flex-direction:column;gap:6px;font-size:13.5px;font-weight:500;">New password<input type="password" style="height:42px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;outline-color:var(--acc);"></input><span style="font-size:12.5px;font-weight:400;color:var(--ink3);">At least 10 characters, including a number.</span></label>
+            <div style="display:flex;gap:8px;"><button onClick="{{ closePw }}" style="height:38px;padding:0 16px;border:0;border-radius:10px;background:var(--acc);color:#fff;font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;">Update password</button><button onClick="{{ closePw }}" style="height:38px;padding:0 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px;cursor:pointer;">Cancel</button></div>
+          </sc-if>
+        </div>
+        <a href="login.dc.html" style="align-self:flex-start;font-size:14px;color:var(--err);text-decoration:none;">Sign out</a>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { mobile: false, drawer: false, name: 'Mārtiņš Kalniņš', email: 'm.kalnins@elektro.lv', saved: '', theme: 'light', pw: false };
+  componentDidMount() { let t = 'light'; try { t = localStorage.getItem('eaa-theme-pref') || localStorage.getItem('eaa-theme') || 'light'; } catch (e) {} this.setState({ mobile: window.innerWidth < 760, theme: t }); this._rs = () => this.setState({ mobile: window.innerWidth < 760 }); window.addEventListener('resize', this._rs); }
+  componentWillUnmount() { window.removeEventListener('resize', this._rs); }
+  renderVals() {
+    const s = this.state;
+    const pick = t => { const eff = t === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : t; document.documentElement.dataset.theme = eff; try { localStorage.setItem('eaa-theme', eff); localStorage.setItem('eaa-theme-pref', t); } catch (e) {} this.setState({ theme: t }); };
+    return {
+      mobile: s.mobile, drawer: s.drawer, openDrawer: () => this.setState({ drawer: true }), closeDrawer: () => this.setState({ drawer: false }),
+      name: s.name, email: s.email, onName: e => this.setState({ name: e.target.value, saved: '' }), onEmail: e => this.setState({ email: e.target.value, saved: '' }), save: () => this.setState({ saved: 'Saved' }), saved: s.saved,
+      themes: [['light', 'Light', '#f5f6f8', '#ffffff', '#e1e4e9'], ['dark', 'Dark', '#101214', '#1a1d21', '#2d3238'], ['system', 'Match my computer', 'linear-gradient(#f5f6f8 50%,#101214 50%)', 'linear-gradient(90deg,#ffffff 50%,#1a1d21 50%)', '#8a9099']].map(t => ({ label: t[1], side: t[2], main: t[3], bar: t[4], line: s.theme === t[0] ? 'var(--acc)' : 'var(--line)', fw: s.theme === t[0] ? 600 : 400, pick: () => pick(t[0]) })),
+      pwOpen: s.pw, pwClosed: !s.pw, openPw: () => this.setState({ pw: true }), closePw: () => this.setState({ pw: false }),
+    };
+  }
+}
+</script>
+</body>
+</html>

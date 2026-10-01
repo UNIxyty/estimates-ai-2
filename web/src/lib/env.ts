@@ -28,8 +28,8 @@ export const env = {
   undoSeconds: () => num('UNDO_SECONDS', 10),
   buildHash: () => str('BUILD_HASH', 'dev'),
   modelFast: () => str('BEDROCK_MODEL_FAST', 'eu.anthropic.claude-haiku-4-5-20251001-v1:0'),
-  modelStandard: () => str('BEDROCK_MODEL_STANDARD', 'eu.anthropic.claude-sonnet-5-5'),
-  modelAdvanced: () => str('BEDROCK_MODEL_ADVANCED', 'eu.anthropic.claude-opus-5-5'),
+  modelStandard: () => str('BEDROCK_MODEL_STANDARD', 'eu.anthropic.claude-sonnet-4-6'),
+  modelAdvanced: () => str('BEDROCK_MODEL_ADVANCED', 'eu.anthropic.claude-opus-4-6-v1'),
   secureCookies: () => str('APP_URL', 'http://localhost:3000').startsWith('https://'),
 };
 

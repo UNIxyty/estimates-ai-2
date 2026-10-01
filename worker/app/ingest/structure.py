@@ -194,7 +194,7 @@ _HEADER_RULES: list[tuple[str, re.Pattern[str]]] = [
                    r"installation cost|arbejdslon|arbejdsl|\blon\b|\barbejde\b|\barbeid\b|\blohn\b|\barbete\b|"
                    r"\btyo\b|darbo|\btoo\b|работ\w*|robocizn\w*|montaz\w*|darba izmaksas|work)")),
     ("material", _rx(r"(materiali|materialu|materials?\b|materialer|materiel|materiell|materjal\w*|medziag\w*|"
-                     r"материал\w*|materialy|tarvik\w*|\bmat\b|materiāli)")),
+                     r"материал\w*|materialy|tarvik\w*|\bmat\b|materiāli|buvizstradajum\w*|izstradajum\w*|buvmaterial\w*)")),
     ("mechanisms", _rx(r"(mehanism\w*|mechanism\w*|machinery|equipment|maskin\w*|masin\w*|mechaniz\w*|"
                        r"механизм\w*|tehnika|iekartas|plant)")),
     ("price", _rx(r"(\bcena\b|\bpris\b|\bprice\b|kaina|\bhind\b|preis|hinta|цена|a pris|enhedspris|enhetspris|"

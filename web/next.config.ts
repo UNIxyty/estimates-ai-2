@@ -2,6 +2,8 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  // Local only: several `next dev` servers can run side by side with separate build dirs (default .next).
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   reactStrictMode: true,
   poweredByHeader: false,
   serverExternalPackages: ['@node-rs/argon2', 'postgres'],

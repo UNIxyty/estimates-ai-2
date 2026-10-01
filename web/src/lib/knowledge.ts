@@ -13,7 +13,15 @@ export const tagSchema = z.enum(FILE_TAGS);
 
 const FILE_LIST_COLS = () => sql`
   f.id, f.original_name, f.ext, f.size_bytes, f.tag, f.status, f.progress, f.fail_reason, f.language,
-  f.summary, f.created_at, f.updated_at, f.analysed_at, f.uploaded_by, u.name AS uploaded_by_name`;
+  f.summary, f.created_at, f.updated_at, f.analysed_at, f.uploaded_by, u.name AS uploaded_by_name,
+  jsonb_build_object(
+    'price_items', (SELECT count(*)::int FROM price_items p WHERE p.file_id = f.id),
+    'price_norms', (SELECT count(*)::int FROM price_items p WHERE p.file_id = f.id AND p.norm_h_per_unit IS NOT NULL),
+    'norms', (SELECT count(*)::int FROM norms n WHERE n.file_id = f.id),
+    'notes', (SELECT count(*)::int FROM agent_notes a WHERE a.file_id = f.id),
+    'sections', (SELECT count(*)::int FROM file_sections s WHERE s.file_id = f.id),
+    'used_in', (SELECT count(DISTINCT fu.conversation_id)::int FROM file_usage fu WHERE fu.file_id = f.id)
+  ) AS counts`;
 
 /** Server paths stay server-side. */
 export function publicFile<T extends Record<string, unknown>>(row: T) {
@@ -48,7 +56,7 @@ export async function fileDetail(viewerId: string, id: string) {
   const f = (await sql`SELECT f.*, u.name AS uploaded_by_name FROM files f LEFT JOIN users u ON u.id = f.uploaded_by
                         WHERE f.id = ${id} AND f.deleted_at IS NULL`)[0];
   if (!f) throw notFound();
-  const [sheets, sections, logic, notes, counts, usedIn] = await Promise.all([
+  const [sheets, sections, logic, notes, counts, usedIn, analysis] = await Promise.all([
     sql`SELECT * FROM file_sheets WHERE file_id = ${id} ORDER BY idx`,
     sql`SELECT * FROM file_sections WHERE file_id = ${id} ORDER BY sheet_id, ord, row_start`,
     sql`SELECT l.*, COALESCE(l.override_sentence, l.sentence) AS effective_sentence,
@@ -69,14 +77,20 @@ export async function fileDetail(viewerId: string, id: string) {
                (SELECT count(*)::int FROM file_sheets WHERE file_id = ${id}) AS sheets,
                (SELECT count(*)::int FROM file_sections WHERE file_id = ${id}) AS sections`,
     usedInFor(viewerId, id),
+    // Model cost of reading this file (all analyses), and the highest tier that was used.
+    sql`SELECT COALESCE(sum(cost_usd), 0)::float AS cost_usd, count(*)::int AS calls,
+               (array_agg(tier ORDER BY CASE tier WHEN 'advanced' THEN 3 WHEN 'standard' THEN 2 WHEN 'fast' THEN 1 ELSE 0 END DESC))[1] AS tier
+          FROM usage WHERE file_id = ${id}`,
   ]);
-  return { file: publicFile(f), sheets, sections, logic, notes, counts: counts[0], usedIn };
+  return { file: publicFile(f), sheets, sections, logic, notes, counts: counts[0], usedIn, analysis: analysis[0] };
 }
 
 /** Only the viewer's own conversations are listed with titles; other people's are just counted. */
 export async function usedInFor(viewerId: string, fileId: string) {
-  const rows = await sql<{ conversation_id: string; title: string; user_id: string; rows_used: number; last_used: Date }[]>`
-    SELECT fu.conversation_id, c.title, c.user_id, sum(fu.rows_used)::int AS rows_used, max(fu.created_at) AS last_used
+  const rows = await sql<{ conversation_id: string; title: string; user_id: string; rows_used: number; last_used: Date; language: string | null }[]>`
+    SELECT fu.conversation_id, c.title, c.user_id, sum(fu.rows_used)::int AS rows_used, max(fu.created_at) AS last_used,
+           (SELECT d.language FROM documents d WHERE d.conversation_id = fu.conversation_id AND d.language IS NOT NULL
+             ORDER BY d.created_at DESC LIMIT 1) AS language
       FROM file_usage fu JOIN conversations c ON c.id = fu.conversation_id
      WHERE fu.file_id = ${fileId}
      GROUP BY fu.conversation_id, c.title, c.user_id
@@ -124,7 +138,7 @@ export async function listItems(fileId: string, opts: { offset: number; limit: n
                  (to_jsonb(n) - 'embedding' - 'override') || COALESCE(override, '{}'::jsonb) AS effective,
                  (override IS NOT NULL) AS edited
             FROM norms n WHERE file_id = ${fileId} AND (${like}::text IS NULL OR item_text ILIKE ${like})
-           ORDER BY sheet_name NULLS FIRST, row_idx NULLS LAST, item_text
+           ORDER BY (attrs ? 'user_added') DESC, sheet_name NULLS FIRST, row_idx NULLS LAST, item_text
            OFFSET ${opts.offset} LIMIT ${opts.limit}`,
       sql<{ n: number }[]>`SELECT count(*)::int AS n FROM norms WHERE file_id = ${fileId}
                              AND (${like}::text IS NULL OR item_text ILIKE ${like})`,
@@ -138,7 +152,7 @@ export async function listItems(fileId: string, opts: { offset: number; limit: n
                (to_jsonb(p) - 'embedding' - 'override') || COALESCE(override, '{}'::jsonb) AS effective,
                (override IS NOT NULL) AS edited
           FROM price_items p WHERE file_id = ${fileId} AND (${like}::text IS NULL OR item_text ILIKE ${like})
-         ORDER BY sheet_name, row_idx
+         ORDER BY (attrs ? 'user_added') DESC, sheet_name, row_idx
          OFFSET ${opts.offset} LIMIT ${opts.limit}`,
     sql<{ n: number }[]>`SELECT count(*)::int AS n FROM price_items WHERE file_id = ${fileId}
                            AND (${like}::text IS NULL OR item_text ILIKE ${like})`,
@@ -174,6 +188,84 @@ export async function patchItem(user: SessionUser, fileId: string, itemId: strin
   }
   workerPoke(`/internal/files/${fileId}/recompute`, { item_id: itemId });
   return { item: row };
+}
+
+/** Sheet name given to rows a user adds by hand on the "Saved numbers" tab (price items need a sheet + row). */
+export const USER_ROWS_SHEET = 'Added by user';
+
+/** Close TS port of the worker's matching.text.normalise_text (lowercase, fold diacritics, unify numbers). */
+export function normaliseItemText(s: string): string {
+  const fold: Record<string, string> = { ø: 'o', æ: 'ae', œ: 'oe', ß: 'ss', ł: 'l', đ: 'd', þ: 'th', ð: 'd', ı: 'i', '²': '2', '³': '3', '×': 'x', '·': ' ', '–': '-', '—': '-' };
+  let t = s.toLowerCase().replace(/[øæœßłđþðı²³×·–—]/g, (c) => fold[c] ?? c);
+  t = t.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+  t = t.replace(/(?<=\d),(?=\d)/g, '.')
+    .replace(/(?<=\d)\s*[x*]\s*(?=\(?\d)/g, 'x')
+    .replace(/\bmm\s*(?:\^\s*)?2\b|\bmm\s*kv\b|\bkv\.?\s*mm\b/g, 'mm2')
+    .replace(/[^\p{L}\p{N}_\s.%/+-]/gu, ' ')
+    .replace(/_+/g, ' ')
+    .replace(/(?<!\d)\.|\.(?!\d)/g, ' ')
+    .replace(/(?<!\d)-|-(?!\d)/g, ' ')
+    .replace(/(?<![\p{L}\p{N}_])\/|\/(?![\p{L}\p{N}_])/gu, ' ')
+    .replace(/\bmm 2\b/g, 'mm2');
+  return t.replace(/\s+/g, ' ').trim();
+}
+
+const num = z.number().finite().min(0).nullable().optional();
+export const itemCreateSchema = z
+  .object({
+    item_text: z.string().trim().min(1).max(2000),
+    unit: z.string().trim().max(50).nullable().optional(),
+    /** price items */
+    norm_h_per_unit: num,
+    unit_labour: num,
+    unit_material: num,
+    /** norms (required when the file's saved numbers are norms) */
+    hours: num,
+  })
+  .strict();
+
+/**
+ * Adds a row by hand. Price items go on the pseudo-sheet USER_ROWS_SHEET with the next row number and
+ * attrs.user_added = true; norms get no sheet/row. Rows have no embedding (exact/text matching only).
+ */
+export async function addItem(user: SessionUser, fileId: string, body: z.infer<typeof itemCreateSchema>) {
+  const file = await visibleFile(fileId);
+  assertCanEditFile(user, file);
+  const kind = file.tag === 'hourly_norms' ? 'norms' : 'price_items';
+  const unit = body.unit || null;
+  const itemNorm = normaliseItemText(body.item_text);
+  if (kind === 'norms') {
+    if (body.hours == null) throw badRequest('hours_required');
+    const row = (await sql`
+      INSERT INTO norms (file_id, sheet_name, row_idx, item_text, item_norm, unit, hours, specificity, attrs, extracted_by)
+      VALUES (${fileId}, NULL, NULL, ${body.item_text}, ${itemNorm}, ${unit}, ${body.hours}, 'item',
+              ${json({ user_added: true, added_by: user.id })}, 'code')
+      RETURNING id, file_id, sheet_name, row_idx, item_text, unit, hours, attrs`)[0];
+    return { kind, item: row };
+  }
+  const summary = (file.summary ?? {}) as { currency?: string; hourly_rates?: number[] };
+  const rate = Array.isArray(summary.hourly_rates) && summary.hourly_rates.length === 1 ? Number(summary.hourly_rates[0]) : null;
+  const labour = body.unit_labour ?? (body.norm_h_per_unit != null && rate ? Math.round(body.norm_h_per_unit * rate * 10000) / 10000 : null);
+  const row = (await sql`
+    INSERT INTO price_items (file_id, sheet_name, row_idx, item_text, item_norm, unit, norm_h_per_unit, unit_labour,
+                             unit_material, hourly_rate, currency, attrs, extracted_by)
+    VALUES (${fileId}, ${USER_ROWS_SHEET},
+            COALESCE((SELECT max(row_idx) + 1 FROM price_items WHERE file_id = ${fileId} AND sheet_name = ${USER_ROWS_SHEET}), 1),
+            ${body.item_text}, ${itemNorm}, ${unit}, ${body.norm_h_per_unit ?? null}, ${labour}, ${body.unit_material ?? null},
+            ${rate}, ${summary.currency || 'EUR'}, ${json({ user_added: true, added_by: user.id })}, 'code')
+    RETURNING id, file_id, sheet_name, row_idx, item_text, unit, norm_h_per_unit, unit_labour, unit_material, currency, attrs`)[0];
+  return { kind, item: row };
+}
+
+/** Removes one saved price item / norm. Re-analysis re-extracts rows from the file itself. */
+export async function deleteItem(user: SessionUser, fileId: string, itemId: string) {
+  const file = await visibleFile(fileId);
+  assertCanEditFile(user, file);
+  const p = await sql`DELETE FROM price_items WHERE id = ${itemId} AND file_id = ${fileId} RETURNING id`;
+  if (p.length) return { ok: true };
+  const n = await sql`DELETE FROM norms WHERE id = ${itemId} AND file_id = ${fileId} RETURNING id`;
+  if (!n.length) throw notFound();
+  return { ok: true };
 }
 
 export const logicPatchSchema = z

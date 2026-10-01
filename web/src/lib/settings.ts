@@ -56,13 +56,14 @@ export function defaultRouting(): Routing {
   };
 }
 
-/** $ per 1M tokens. Placeholders until an admin sets real Bedrock prices. */
+/** $ per 1M tokens: AWS Bedrock on-demand, eu-north-1, eu.* profiles at the regional rate (price list, 2026-10-01).
+ *  Keep in step with DEFAULT_MODEL_PRICES in worker/app/llm/config_store.py, which the usage ledger bills with. */
 export function defaultPrices(): Prices {
   return {
     models: {
-      [env.modelFast()]: { input: 1, output: 5, cache_read: 0.1, cache_write: 1.25 },
-      [env.modelStandard()]: { input: 3, output: 15, cache_read: 0.3, cache_write: 3.75 },
-      [env.modelAdvanced()]: { input: 5, output: 25, cache_read: 0.5, cache_write: 6.25 },
+      [env.modelFast()]: { input: 1.1, output: 5.5, cache_read: 0.11, cache_write: 1.375 },
+      [env.modelStandard()]: { input: 3.3, output: 16.5, cache_read: 0.33, cache_write: 4.125 },
+      [env.modelAdvanced()]: { input: 5.5, output: 27.5, cache_read: 0.55, cache_write: 6.875 },
     },
     web_search_unit_usd: Number(process.env.WEB_SEARCH_UNIT_COST_USD || 0.005),
   };

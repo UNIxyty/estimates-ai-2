@@ -1,0 +1,8 @@
+/* Hover states from the design's style-hover attributes that tokens.css has no utility for. */
+.rowChip:hover { background: var(--acc) !important; color: #fff !important; }
+.accBorder:hover { border-color: var(--acc) !important; }
+.example:hover { background: var(--sunk) !important; color: var(--ink) !important; }
+.chipName:hover { text-decoration: underline; }
+.textarea::placeholder { color: var(--ink3); }
+.textarea:disabled { cursor: not-allowed; }
+.divider:hover { background: var(--accSoft); }

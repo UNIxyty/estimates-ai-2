@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('eaa-theme')||'light'}catch(e){}</script>
+<style>
+:root,[data-theme=light]{--bg:#fcfcfd;--side:#f5f6f8;--panel:#ffffff;--sunk:#eef0f3;--bubble:#eceff4;--line:#e1e4e9;--line2:#eceef2;--ink:#15181c;--ink2:#4a525c;--ink3:#737b86;--acc:#1f5eff;--accSoft:#e7eeff;--accInk:#1747c9;--ok:#177a43;--okSoft:#e3f3e9;--warn:#9a5700;--warnSoft:#fcefd8;--err:#bf3228;--errSoft:#fbe6e4;--web:#0d6e84;--webSoft:#dff1f5;--hl:#fff1b3;--hl2:#fff8d6;color-scheme:light}
+[data-theme=dark]{--bg:#141619;--side:#101214;--panel:#1a1d21;--sunk:#23272c;--bubble:#262a30;--line:#2d3238;--line2:#23272c;--ink:#e7e9ec;--ink2:#adb4bc;--ink3:#7f8791;--acc:#4a7dff;--accSoft:#1b2851;--accInk:#9ab7ff;--ok:#5cc98a;--okSoft:#14301f;--warn:#f0b04a;--warnSoft:#3a2a10;--err:#f07a70;--errSoft:#3d1a18;--web:#55c6da;--webSoft:#0f2d33;--hl:#4a3f12;--hl2:#2e2912;color-scheme:dark}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--accInk)}a:hover{color:var(--acc)}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+<title>Set up · Estimates AI Agent</title></helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);">
+  <header style="height:60px;flex:none;display:flex;align-items:center;gap:10px;padding:0 24px;border-bottom:1px solid var(--line);background:var(--panel);">
+    <span style="width:26px;height:26px;border-radius:7px;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;">E</span>
+    <span style="font-weight:600;font-size:15px;">Estimates AI Agent</span>
+    <span style="margin-left:auto;font-size:13px;color:var(--ink3);">Signed in as m.kalnins@elektro.lv</span>
+  </header>
+  <div style="flex:1;width:100%;max-width:1080px;margin:0 auto;padding:32px 24px 48px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:32px;align-items:start;">
+    <aside style="display:flex;flex-direction:column;gap:18px;max-width:340px;">
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <h1 style="margin:0;font-size:24px;font-weight:600;letter-spacing:-0.01em;">Set up your knowledge base</h1>
+        <div style="font-size:14px;color:var(--ink2);line-height:1.55;">The agent learns how you price by reading estimates you've already priced by hand. This takes a few minutes, once.</div>
+      </div>
+      <div style="display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden;">
+        <sc-for list="{{ steps }}" as="s" hint-placeholder-count="4">
+          <button onClick="{{ s.go }}" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:0;border-bottom:1px solid var(--line2);background:{{ s.bg }};color:var(--ink);font:inherit;text-align:left;cursor:pointer;">
+            <span style="width:24px;height:24px;flex:none;border-radius:50%;border:1.5px solid {{ s.ring }};background:{{ s.dot }};color:{{ s.numFg }};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">{{ s.mark }}</span>
+            <span style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:14px;font-weight:{{ s.fw }};">{{ s.label }}</span><span style="font-size:12.5px;color:var(--ink3);">{{ s.note }}</span></span>
+          </button>
+        </sc-for>
+      </div>
+      <div style="display:flex;gap:10px;padding:14px 16px;border-radius:12px;background:{{ lockBg }};font-size:13px;line-height:1.5;color:var(--ink2);">
+        <span style="flex:none;font-weight:700;color:{{ lockFg }};">{{ lockIcon }}</span><span>{{ lockText }}</span>
+      </div>
+    </aside>
+
+    <section style="display:flex;flex-direction:column;gap:18px;min-width:0;">
+      <sc-if value="{{ onUpload }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:4px;"><h2 style="margin:0;font-size:18px;font-weight:600;">{{ upTitle }}</h2><div style="font-size:14px;color:var(--ink2);">{{ upSub }}</div></div>
+        <label onDragOver="{{ onDragOver }}" onDragLeave="{{ onDragLeave }}" onDrop="{{ onDrop }}" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:{{ dropPad }};border:1.5px dashed {{ dropLine }};border-radius:16px;background:{{ dropBg }};text-align:center;cursor:pointer;">
+          <span style="width:44px;height:44px;border-radius:12px;background:var(--accSoft);color:var(--accInk);display:flex;align-items:center;justify-content:center;font-size:22px;">+</span>
+          <span style="font-size:15px;font-weight:600;">Drop files here, or click to choose</span>
+          <span style="font-size:13px;color:var(--ink3);">.xlsx, .xls, .docx or .pdf · up to 50 MB each</span>
+          <input type="file" multiple="{{ true }}" onChange="{{ onFiles }}" style="display:none;"></input>
+        </label>
+        <sc-if value="{{ hasFiles }}" hint-placeholder-val="{{ true }}">
+          <div style="border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden;">
+            <sc-for list="{{ files }}" as="f" hint-placeholder-count="4">
+              <div style="display:flex;flex-direction:column;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line2);">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                  <span style="width:30px;height:34px;flex:none;border-radius:5px;background:{{ f.kindBg }};color:{{ f.kindFg }};display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:8.5px;font-weight:600;">{{ f.kind }}</span>
+                  <span style="flex:1;min-width:140px;display:flex;flex-direction:column;"><span style="font-size:14px;font-weight:500;">{{ f.name }}</span><span style="font-size:12px;color:var(--ink3);">{{ f.size }}</span></span>
+                  <select value="{{ f.type }}" onChange="{{ f.setType }}" style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px;max-width:220px;"><option>Priced estimate (reference)</option><option>Hourly norms</option><option>Price list</option><option>Other</option></select>
+                  <span style="min-width:112px;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;color:{{ f.sfg }};"><span style="width:7px;height:7px;border-radius:50%;background:currentColor;"></span>{{ f.status }}</span>
+                  <button onClick="{{ f.remove }}" title="Remove" style="width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--ink3);font-size:16px;cursor:pointer;" style-hover="background:var(--sunk);">×</button>
+                </div>
+                <sc-if value="{{ f.busy }}" hint-placeholder-val="{{ false }}"><div style="height:4px;border-radius:2px;background:var(--sunk);overflow:hidden;margin-left:42px;"><div style="height:100%;width:{{ f.pct }}%;background:var(--acc);transition:width .6s;"></div></div></sc-if>
+                <sc-if value="{{ f.failed }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin-left:42px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border-radius:10px;background:var(--errSoft);font-size:13px;">
+                    <span style="flex:1;min-width:200px;color:var(--ink);">{{ f.reason }}</span>
+                    <button onClick="{{ f.retry }}" style="height:30px;padding:0 12px;border:1px solid var(--err);border-radius:8px;background:var(--panel);color:var(--err);font:inherit;font-size:13px;font-weight:600;cursor:pointer;">Retry</button>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <div style="display:flex;justify-content:flex-end;gap:8px;">
+          <sc-if value="{{ onStep2 }}" hint-placeholder-val="{{ false }}"><button onClick="{{ skip }}" style="height:40px;padding:0 16px;border:0;border-radius:10px;background:transparent;color:var(--ink2);font:inherit;font-size:14px;cursor:pointer;">Skip this step</button></sc-if>
+          <button onClick="{{ next }}" style="height:40px;padding:0 18px;border:0;border-radius:10px;background:{{ nextBg }};color:#fff;font:inherit;font-size:14px;font-weight:600;cursor:pointer;">Continue</button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ onReview }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:4px;"><h2 style="margin:0;font-size:18px;font-weight:600;">Review what the agent learned</h2><div style="font-size:14px;color:var(--ink2);">Check each file. You can correct numbers and notes now or later in the knowledge base.</div></div>
+        <sc-for list="{{ learned }}" as="l" hint-placeholder-count="2">
+          <div style="border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line2);flex-wrap:wrap;">
+              <span style="font-size:14.5px;font-weight:600;">{{ l.name }}</span>
+              <span style="display:inline-flex;align-items:center;height:17px;padding:0 5px;border:1px solid var(--line);border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:var(--ink2);">{{ l.lang }}</span>
+              <span style="font-size:12.5px;color:var(--ink3);">{{ l.type }}</span>
+              <a href="knowledge-file.dc.html" style="margin-left:auto;font-size:13px;font-weight:500;">Review details ›</a>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+              <div style="padding:12px 16px;display:flex;flex-direction:column;gap:3px;border-right:1px solid var(--line2);"><span style="font-size:12px;color:var(--ink3);">Structure</span><span style="font-size:13.5px;">{{ l.structure }}</span></div>
+              <div style="padding:12px 16px;display:flex;flex-direction:column;gap:3px;border-right:1px solid var(--line2);"><span style="font-size:12px;color:var(--ink3);">Calculation logic</span><span style="font-size:13.5px;">{{ l.logic }}</span></div>
+              <div style="padding:12px 16px;display:flex;flex-direction:column;gap:3px;"><span style="font-size:12px;color:var(--ink3);">Saved</span><span style="font-size:13.5px;">{{ l.saved }}</span></div>
+            </div>
+          </div>
+        </sc-for>
+        <div style="display:flex;justify-content:flex-end;"><a href="chat-new.dc.html" style="height:44px;display:inline-flex;align-items:center;padding:0 22px;border-radius:10px;background:var(--acc);color:#fff;text-decoration:none;font-size:15px;font-weight:600;">Start estimating</a></div>
+      </sc-if>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const SEED = [
+  ['Braila 23.xlsx', 'Priced estimate (reference)', '1.2 MB', 'Analysed', 100],
+  ['data-center.xlsx', 'Priced estimate (reference)', '3.8 MB', 'Analysing', 55],
+  ['Skolegade 14.xlsx', 'Priced estimate (reference)', '2.1 MB', 'Reading', 20],
+  ['norms.docx', 'Hourly norms', '84 KB', 'Queued', 0],
+  ['cenas_old.xls', 'Price list', '640 KB', 'Failed', 0, 'This is an Excel 95 file, which can’t be read. Open it in Excel, save as .xlsx and upload it again.'],
+];
+const ORDER = ['Queued', 'Reading', 'Analysing', 'Analysed'];
+const ST = { Queued: 'var(--ink3)', Reading: 'var(--acc)', Analysing: 'var(--acc)', Analysed: 'var(--ok)', Failed: 'var(--err)' };
+const KIND = n => /\.pdf$/i.test(n) ? ['PDF', 'var(--err)', 'var(--errSoft)'] : /\.docx?$/i.test(n) ? ['DOCX', 'var(--accInk)', 'var(--accSoft)'] : ['XLSX', 'var(--ok)', 'var(--okSoft)'];
+const guess = n => /norm/i.test(n) ? 'Hourly norms' : /pri|cen|price/i.test(n) ? 'Price list' : /\.xlsx?$/i.test(n) ? 'Priced estimate (reference)' : 'Other';
+class Component extends DCLogic {
+  state = { files: [], step: 0, drag: false };
+  componentDidMount() {
+    const empty = new URLSearchParams(location.search).has('empty');
+    this.setState({ files: empty ? [] : SEED.map((f, i) => ({ id: i, name: f[0], type: f[1], size: f[2], status: f[3], pct: f[4], reason: f[5] })) });
+    this._iv = setInterval(() => this.tick(), 1100);
+  }
+  componentWillUnmount() { clearInterval(this._iv); }
+  tick() {
+    let moved = false;
+    const files = this.state.files.map(f => {
+      if (f.status === 'Analysed' || f.status === 'Failed' || moved) return f;
+      if (f.status === 'Analysing' && f.pct < 100) { moved = true; return { ...f, pct: Math.min(100, f.pct + 20) }; }
+      moved = true;
+      if (f.retry && f.status === 'Reading') return { ...f, status: 'Failed', retry: false };
+      const i = ORDER.indexOf(f.status); return { ...f, status: ORDER[i + 1], pct: i + 1 === 1 ? 20 : i + 1 === 2 ? 40 : 100 };
+    });
+    if (moved) this.setState({ files });
+  }
+  add(list) { const base = this.state.files.length + 100; this.setState({ files: [...this.state.files, ...list.map((f, i) => ({ id: base + i, name: f.name, type: guess(f.name), size: f.size > 1e6 ? (f.size / 1e6).toFixed(1) + ' MB' : Math.round(f.size / 1e3) + ' KB', status: 'Queued', pct: 0 }))] }); }
+  renderVals() {
+    const { files, step } = this.state;
+    const refOk = files.some(f => f.type === 'Priced estimate (reference)' && f.status === 'Analysed');
+    const done = [files.some(f => f.type === 'Priced estimate (reference)'), step > 1, step > 2 && refOk];
+    const S = [['Upload priced estimates', 'Required · at least one'], ['Add norms and price lists', 'Optional'], ['Review what the agent learned', 'Check and correct'], ['Start estimating', refOk ? 'Ready' : 'Unlocks after step 1']];
+    return {
+      steps: S.map((s, i) => { const on = i === step, ok = done[i]; return { label: s[0], note: s[1], mark: ok && !on ? '✓' : String(i + 1), bg: on ? 'var(--accSoft)' : 'var(--panel)', ring: on ? 'var(--acc)' : ok ? 'var(--ok)' : 'var(--line)', dot: ok && !on ? 'var(--ok)' : on ? 'var(--acc)' : 'transparent', numFg: ok || on ? '#fff' : 'var(--ink3)', fw: on ? 600 : 500, go: () => { if (i === 3) { if (refOk) location.href = 'chat-new.dc.html'; return; } this.setState({ step: i }); } }; }),
+      lockBg: refOk ? 'var(--okSoft)' : 'var(--sunk)', lockFg: refOk ? 'var(--ok)' : 'var(--ink3)', lockIcon: refOk ? '✓' : '●',
+      lockText: refOk ? 'Chat is unlocked. You can start now; files still being analysed will be used when they finish.' : 'Chat is locked until at least one priced estimate is analysed. The agent needs an example of how you price.',
+      onUpload: step < 2, onStep2: step === 1, onReview: step === 2,
+      upTitle: step === 0 ? 'Upload estimates you have already priced' : 'Add hourly norms and price lists',
+      upSub: step === 0 ? 'Finished, priced estimates teach the agent your structure, rates and markups. Three or more gives the best results.' : 'Optional. Norms and price lists make pricing more accurate. Tag each file so the agent knows how to read it.',
+      hasFiles: files.length > 0, dropPad: files.length ? '24px' : '56px 24px', dropLine: this.state.drag ? 'var(--acc)' : 'var(--line)', dropBg: this.state.drag ? 'var(--accSoft)' : 'var(--panel)',
+      files: files.map(f => { const k = KIND(f.name); return { ...f, kind: k[0], kindFg: k[1], kindBg: k[2], sfg: ST[f.status], busy: f.status !== 'Analysed' && f.status !== 'Failed', failed: f.status === 'Failed',
+        status: f.status === 'Analysing' ? `Analysing · ${f.pct}%` : f.status,
+        setType: e => this.setState({ files: this.state.files.map(x => x.id === f.id ? { ...x, type: e.target.value } : x) }),
+        remove: () => this.setState({ files: this.state.files.filter(x => x.id !== f.id) }),
+        retry: () => this.setState({ files: this.state.files.map(x => x.id === f.id ? { ...x, status: 'Queued', pct: 0, retry: true } : x) }) }; }),
+      onFiles: e => { this.add([...e.target.files]); e.target.value = ''; },
+      onDragOver: e => { e.preventDefault(); this.setState({ drag: true }); }, onDragLeave: () => this.setState({ drag: false }),
+      onDrop: e => { e.preventDefault(); this.setState({ drag: false }); this.add([...e.dataTransfer.files]); },
+      nextBg: step === 0 && !done[0] ? 'var(--ink3)' : 'var(--acc)',
+      next: () => { if (step === 0 && !done[0]) return; this.setState({ step: step + 1 }); }, skip: () => this.setState({ step: 2 }),
+      learned: files.filter(f => f.status === 'Analysed').map(f => ({ name: f.name, type: f.type, lang: /Braila|cenas/.test(f.name) ? 'LV' : /norms/.test(f.name) ? 'EN' : 'DA',
+        structure: /norms/.test(f.name) ? '4 sections · 1 table per section' : /Braila/.test(f.name) ? '2 sheets (EL, ELT) · 4 sections · 8 columns' : '3 sheets · 6 sections · 12 columns',
+        logic: /norms/.test(f.name) ? 'Hours per unit, +20% above 3.5 m' : /Braila/.test(f.name) ? 'Norm × EUR 24/h · material +12%' : 'Norm × DKK 430/h · no markup',
+        saved: /norms/.test(f.name) ? '46 norms · 3 notes' : /Braila/.test(f.name) ? '212 prices · 188 norms · 5 notes' : '640 prices · 598 norms · 7 notes' })),
+    };
+  }
+}
+</script>
+</body>
+</html>

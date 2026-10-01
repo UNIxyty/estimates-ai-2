@@ -96,3 +96,21 @@ export async function patchUser(adminId: string, userId: string, input: z.infer<
 export async function disableUser(adminId: string, userId: string) {
   return patchUser(adminId, userId, { status: 'disabled' });
 }
+
+/**
+ * Cancels a pending invite: the invited account never set a password, so it holds no data — the row (and its
+ * tokens) is deleted and any invite email still waiting in the queue is cancelled. Accepted accounts are
+ * removed with disableUser instead.
+ */
+export async function cancelInvite(userId: string) {
+  return sql.begin(async (tx) => {
+    const u = (await tx<{ id: string; status: string; password_hash: string | null }[]>`
+      SELECT id, status, password_hash FROM users WHERE id = ${userId} FOR UPDATE`)[0];
+    if (!u) throw notFound();
+    if (u.status !== 'invited' || u.password_hash) throw badRequest('not_invited', { message: 'This person has already accepted the invite.' });
+    await tx`UPDATE jobs SET status = 'cancelled', finished_at = now()
+              WHERE kind = 'send_auth_email' AND status = 'queued' AND payload->>'user_id' = ${userId}`;
+    await tx`DELETE FROM users WHERE id = ${userId}`;
+    return { ok: true };
+  });
+}

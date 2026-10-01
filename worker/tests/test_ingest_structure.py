@@ -233,3 +233,29 @@ def test_messy_workbook(tmp_path):
     assert items[0].qty == 1250 and items[0].values["unit_total"] == 2.1 and items[0].values["total"] == 2625
     assert items[2].hidden is True
     assert s.last_data_row == 19 and s.rows[-1].kind == "total"
+
+
+def test_lv_buvizstradajumi_is_material_in_blank(tmp_path):
+    """LV blanks label material as "Būvizstrādājumi (€)"; with empty price cells there are no numbers to infer
+    from, so the header alone must identify the unit and total material columns (else the writer skips them)."""
+    assert classify_header("Būvizstrādājumi (€)")[0] == "material"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "EL"
+    ws["G4"], ws["M4"] = "Vienības izmaksas", "Kopā uz visu apjomu"
+    heads = ["Nr.p.k.", "Kods", "Darba nosaukums", "Mērvienība", "Daudzums", "Būvizstr. kods", "Laika norma (c/h)",
+             "Darba samaksas likme (€/h)", "Darba alga (€)", "Būvizstrādājumi (€)", "Mehānismi (€)", "Kopā (€)",
+             "Darbietilpība (c/h)", "Darba alga (€)", "Būvizstrādājumi (€)", "Mehānismi (€)", "Kopā (€)"]
+    for i, h in enumerate(heads):
+        ws.cell(5, i + 1, h)
+    ws["C6"] = "Sadalnes"
+    for r in range(7, 12):
+        ws[f"A{r}"], ws[f"C{r}"], ws[f"D{r}"], ws[f"E{r}"] = r - 6, f"Kabelis NYM 3x{r}", "m", 10 * r
+        ws[f"L{r}"], ws[f"M{r}"], ws[f"N{r}"] = f"=I{r}+J{r}+K{r}", f"=E{r}*G{r}", f"=E{r}*I{r}"
+        ws[f"O{r}"], ws[f"P{r}"], ws[f"Q{r}"] = f"=E{r}*J{r}", f"=E{r}*K{r}", f"=N{r}+O{r}+P{r}"
+    path = tmp_path / "lv_blank.xlsx"
+    wb.save(path)
+    sheet = analyse_workbook(str(path)).sheets[0]
+    meanings = {c.letter: c.meaning for c in sheet.columns}
+    assert meanings["J"] == "unit_material" and meanings["O"] == "total_material"
+    assert meanings["I"] == "unit_labour" and meanings["N"] == "total_labour"

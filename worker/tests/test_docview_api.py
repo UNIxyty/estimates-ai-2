@@ -207,7 +207,9 @@ def test_document_sheets_marker_counts(world):
     body = get(world, "sheets", kind="document", id=world["doc"]).json()
     s = body["sheets"][0]
     assert s["name"] == "Big" and s["row_count"] == 1500
-    assert s["marker_counts"] == {"web": 3, "check": 3, "no_price": 2, "edited": 1, "flagged": 6}
+    assert s["marker_counts"] == {"web": 3, "check": 3, "no_price": 2, "edited": 1, "flagged": 6, "attention": 4}
+    assert isinstance(s["outline"], list)
+    assert all(o["kind"] in ("header", "section", "subtotal", "total") and "cells" in o for o in s["outline"])
 
 
 def test_document_rows_markers(world):
@@ -226,7 +228,7 @@ def test_document_rows_markers(world):
 
 @pytest.mark.parametrize("flt,expected", [
     ("web", [3, 6, 8]), ("check", [4, 5, 8]), ("no_price", [5, 1203]), ("edited", [6]),
-    ("flagged", [3, 4, 5, 6, 8, 1203]),
+    ("flagged", [3, 4, 5, 6, 8, 1203]), ("attention", [4, 5, 8, 1203]),
 ])
 def test_document_filters(world, flt, expected):
     body = get(world, "rows", kind="document", id=world["doc"], filter=flt, limit=500).json()
@@ -244,3 +246,35 @@ def test_document_filter_paging_q_around(world):
     assert body["offset"] == 1200 and body["rows"][0]["r"] == 1201 and body["total"] == 1500
     body = get(world, "rows", kind="document", id=world["doc"], limit=9999).json()
     assert body["limit"] == 500 and len(body["rows"]) == 500
+
+
+def test_file_sheets_outline(world):
+    s0 = get(world, "sheets", kind="file", id=world["ids"]["xlsx"]).json()["sheets"][0]
+    kinds = [o["kind"] for o in s0["outline"]]
+    assert kinds[0] == "header" and "section" in kinds
+    assert s0["outline"][0]["cells"]
+
+
+def test_upload_kind(world):
+    from app import db
+    data = world["data"]
+    conv = db.fetchone("SELECT conversation_id FROM documents WHERE id = %s", (world["doc"],))["conversation_id"]
+    user = db.fetchone("SELECT user_id FROM conversations WHERE id = %s", (conv,))["user_id"]
+    ids = {}
+    for ext, maker in (("xlsx", make_estimate_xlsx), ("docx", make_docx), ("xls", write_garbage)):
+        uid = str(uuid.uuid4())
+        rel = f"uploads/{uid}/original.{ext}"
+        full = os.path.join(data, rel)
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+        maker(full)
+        db.execute("INSERT INTO uploads (id, user_id, conversation_id, original_name, ext, stored_path) "
+                   "VALUES (%s, %s, %s, %s, %s, %s)", (uid, user, conv, f"blank.{ext}", ext, rel))
+        ids[ext] = uid
+    r = get(world, "sheets", kind="upload", id=ids["xlsx"])
+    assert r.status_code == 200 and r.json()["name"] == "blank.xlsx" and "marker_counts" not in r.json()["sheets"][0]
+    assert get(world, "rows", kind="upload", id=ids["xlsx"], sheet=0).json()["total"] == 10
+    r = get(world, "html", kind="upload", id=ids["docx"])
+    assert r.status_code == 200 and "<table>" in r.json()["html"]
+    assert get(world, "sheets", kind="upload", id=ids["xls"]).status_code == 415
+    assert get(world, "raw-path", kind="upload", id=ids["xls"]).json()["name"] == "blank.xls"
+    assert get(world, "sheets", kind="upload", id=str(uuid.uuid4())).status_code == 404

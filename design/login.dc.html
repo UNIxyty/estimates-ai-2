@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('eaa-theme')||'light'}catch(e){}</script>
+<style>
+:root,[data-theme=light]{--bg:#fcfcfd;--side:#f5f6f8;--panel:#ffffff;--sunk:#eef0f3;--bubble:#eceff4;--line:#e1e4e9;--line2:#eceef2;--ink:#15181c;--ink2:#4a525c;--ink3:#737b86;--acc:#1f5eff;--accSoft:#e7eeff;--accInk:#1747c9;--ok:#177a43;--okSoft:#e3f3e9;--warn:#9a5700;--warnSoft:#fcefd8;--err:#bf3228;--errSoft:#fbe6e4;--web:#0d6e84;--webSoft:#dff1f5;--hl:#fff1b3;--hl2:#fff8d6;color-scheme:light}
+[data-theme=dark]{--bg:#141619;--side:#101214;--panel:#1a1d21;--sunk:#23272c;--bubble:#262a30;--line:#2d3238;--line2:#23272c;--ink:#e7e9ec;--ink2:#adb4bc;--ink3:#7f8791;--acc:#4a7dff;--accSoft:#1b2851;--accInk:#9ab7ff;--ok:#5cc98a;--okSoft:#14301f;--warn:#f0b04a;--warnSoft:#3a2a10;--err:#f07a70;--errSoft:#3d1a18;--web:#55c6da;--webSoft:#0f2d33;--hl:#4a3f12;--hl2:#2e2912;color-scheme:dark}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--accInk)}a:hover{color:var(--acc)}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+<title>Sign in · Estimates AI Agent</title></helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:32px 20px;background:var(--bg);color:var(--ink);">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span style="width:30px;height:30px;border-radius:8px;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;">E</span>
+    <span style="font-weight:600;font-size:17px;letter-spacing:-0.01em;">Estimates AI Agent</span>
+  </div>
+  <div style="width:100%;max-width:400px;display:flex;flex-direction:column;gap:18px;padding:28px;border:1px solid var(--line);border-radius:16px;background:var(--panel);box-shadow:0 1px 2px rgba(16,24,40,0.04),0 12px 32px rgba(16,24,40,0.06);">
+    <sc-if value="{{ isSignin }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:4px;"><h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-0.01em;">Sign in</h1><div style="font-size:14px;color:var(--ink2);">Use the email your administrator invited.</div></div>
+      <sc-if value="{{ error }}" hint-placeholder-val="{{ false }}"><div style="padding:10px 12px;border-radius:10px;background:var(--errSoft);color:var(--err);font-size:13.5px;">{{ error }}</div></sc-if>
+      <label style="display:flex;flex-direction:column;gap:6px;font-size:13.5px;font-weight:500;">Email<input type="email" value="{{ email }}" onChange="{{ onEmail }}" placeholder="name@company.com" style="height:44px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;font-weight:400;font-size:15px;outline-color:var(--acc);"></input></label>
+      <label style="display:flex;flex-direction:column;gap:6px;font-size:13.5px;font-weight:500;">
+        <span style="display:flex;justify-content:space-between;">Password<button onClick="{{ toForgot }}" style="border:0;padding:0;background:transparent;color:var(--accInk);font:inherit;font-weight:400;font-size:13px;cursor:pointer;">Forgot password?</button></span>
+        <span style="display:flex;align-items:center;height:44px;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:0 4px 0 12px;">
+          <input type="{{ pwType }}" value="{{ pw }}" onChange="{{ onPw }}" onKeyDown="{{ onKey }}" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:inherit;font-weight:400;font-size:15px;"></input>
+          <button onClick="{{ togglePw }}" style="height:34px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:var(--ink2);font:inherit;font-weight:400;font-size:13px;cursor:pointer;">{{ pwLabel }}</button>
+        </span>
+      </label>
+      <button onClick="{{ submit }}" style="height:44px;border:0;border-radius:10px;background:var(--acc);color:#fff;font:inherit;font-size:15px;font-weight:600;cursor:pointer;">Sign in</button>
+    </sc-if>
+    <sc-if value="{{ isForgot }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:4px;"><h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-0.01em;">Reset your password</h1><div style="font-size:14px;color:var(--ink2);">We'll email you a link to choose a new password.</div></div>
+      <label style="display:flex;flex-direction:column;gap:6px;font-size:13.5px;font-weight:500;">Email<input type="email" value="{{ email }}" onChange="{{ onEmail }}" placeholder="name@company.com" style="height:44px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;font-weight:400;font-size:15px;outline-color:var(--acc);"></input></label>
+      <button onClick="{{ sendReset }}" style="height:44px;border:0;border-radius:10px;background:var(--acc);color:#fff;font:inherit;font-size:15px;font-weight:600;cursor:pointer;">Send reset link</button>
+      <button onClick="{{ toSignin }}" style="height:36px;border:0;background:transparent;color:var(--ink2);font:inherit;font-size:14px;cursor:pointer;">‹ Back to sign in</button>
+    </sc-if>
+    <sc-if value="{{ isSent }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-start;">
+        <span style="width:36px;height:36px;border-radius:50%;background:var(--okSoft);color:var(--ok);display:flex;align-items:center;justify-content:center;font-size:16px;">✓</span>
+        <h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-0.01em;">Check your email</h1>
+        <div style="font-size:14px;color:var(--ink2);line-height:1.55;">If <b style="font-weight:600;color:var(--ink);">{{ emailShown }}</b> has an account, a reset link is on its way. The link works for 1 hour.</div>
+        <a href="set-password.dc.html?reset=1" style="font-size:13.5px;">Open the reset link (demo)</a>
+        <button onClick="{{ toSignin }}" style="height:36px;padding:0;border:0;background:transparent;color:var(--ink2);font:inherit;font-size:14px;cursor:pointer;">‹ Back to sign in</button>
+      </div>
+    </sc-if>
+  </div>
+  <div style="max-width:400px;text-align:center;font-size:13px;color:var(--ink3);line-height:1.5;">Access is by invitation only. If you don't have an account, ask your administrator to invite you.</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { view: 'signin', email: 'm.kalnins@elektro.lv', pw: '', show: false, error: '' };
+  componentDidMount() { if (new URLSearchParams(location.search).has('error')) this.setState({ error: 'Email or password is incorrect. Check both and try again.', pw: 'wrongpass' }); }
+  renderVals() {
+    const s = this.state, go = () => { if (!s.email.includes('@')) return this.setState({ error: 'Enter the email address you were invited with.' }); if (!s.pw) return this.setState({ error: 'Enter your password.' }); if (s.pw === 'wrongpass') return this.setState({ error: 'Email or password is incorrect. Check both and try again.' }); location.href = 'chat-new.dc.html'; };
+    return {
+      isSignin: s.view === 'signin', isForgot: s.view === 'forgot', isSent: s.view === 'sent', error: s.error,
+      email: s.email, emailShown: s.email, pw: s.pw, pwType: s.show ? 'text' : 'password', pwLabel: s.show ? 'Hide' : 'Show',
+      onEmail: e => this.setState({ email: e.target.value, error: '' }), onPw: e => this.setState({ pw: e.target.value, error: '' }),
+      onKey: e => e.key === 'Enter' && go(), togglePw: () => this.setState({ show: !s.show }), submit: go,
+      toForgot: e => { e.preventDefault(); this.setState({ view: 'forgot', error: '' }); }, toSignin: () => this.setState({ view: 'signin' }), sendReset: () => this.setState({ view: 'sent' }),
+    };
+  }
+}
+</script>
+</body>
+</html>

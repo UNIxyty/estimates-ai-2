@@ -1,0 +1,29 @@
+/* Hover / animation details of the document viewer (design/DocViewer.dc.html style-hover). */
+.ghost:hover { background: var(--sunk) !important; }
+.tabClose:hover { background: var(--sunk) !important; color: var(--ink) !important; }
+.refBtn:hover { border-color: var(--acc) !important; }
+.divider:hover { background: var(--accSoft); }
+.rowHover:hover { filter: brightness(0.985); }
+.skel {
+  background: linear-gradient(90deg, var(--sunk) 0px, var(--line2) 120px, var(--sunk) 240px);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+.noScrollbar { scrollbar-width: none; }
+.noScrollbar::-webkit-scrollbar { display: none; }
+
+/* Rendered docx (sanitised HTML from the worker). */
+.docx { font-size: 13.5px; line-height: 1.55; color: #3a3f47; overflow-wrap: anywhere; }
+.docx h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 10px; color: #1b1d21; }
+.docx h2 { font-size: 16px; font-weight: 600; margin: 22px 0 6px; color: #1b1d21; }
+.docx h3, .docx h4, .docx h5, .docx h6 { font-size: 14px; font-weight: 600; margin: 16px 0 4px; color: #1b1d21; }
+.docx p { margin: 0 0 6px; }
+.docx table { width: 100%; border-collapse: collapse; margin: 6px 0 12px; font-size: 13px; }
+.docx td, .docx th { border-bottom: 1px solid #e6e8ec; padding: 5px 8px 5px 0; text-align: left; vertical-align: top; }
+.docx tr:first-child td, .docx th { font-weight: 600; color: #1b1d21; }
+.docx td p, .docx th p { margin: 0; }
+.docx ul, .docx ol { margin: 0 0 8px; padding-left: 22px; }
+.docx img { max-width: 100%; height: auto; }
+.docx a { color: #1747c9; }
+.docx mark { background: #fff1b3; color: inherit; border-radius: 2px; padding: 0 1px; }
+.docx mark[data-current='1'] { background: #ffd84d; box-shadow: 0 0 0 1.5px #1f5eff; }

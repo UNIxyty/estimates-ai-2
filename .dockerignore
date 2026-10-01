@@ -7,3 +7,5 @@ worker/tests
 .git
 .env
 *.log
+**/.next-*
+gate-estimates

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('eaa-theme')||'light'}catch(e){}</script>
+<style>
+:root,[data-theme=light]{--bg:#fcfcfd;--side:#f5f6f8;--panel:#ffffff;--sunk:#eef0f3;--bubble:#eceff4;--line:#e1e4e9;--line2:#eceef2;--ink:#15181c;--ink2:#4a525c;--ink3:#737b86;--acc:#1f5eff;--accSoft:#e7eeff;--accInk:#1747c9;--ok:#177a43;--okSoft:#e3f3e9;--warn:#9a5700;--warnSoft:#fcefd8;--err:#bf3228;--errSoft:#fbe6e4;--web:#0d6e84;--webSoft:#dff1f5;--hl:#fff1b3;--hl2:#fff8d6;color-scheme:light}
+[data-theme=dark]{--bg:#141619;--side:#101214;--panel:#1a1d21;--sunk:#23272c;--bubble:#262a30;--line:#2d3238;--line2:#23272c;--ink:#e7e9ec;--ink2:#adb4bc;--ink3:#7f8791;--acc:#4a7dff;--accSoft:#1b2851;--accInk:#9ab7ff;--ok:#5cc98a;--okSoft:#14301f;--warn:#f0b04a;--warnSoft:#3a2a10;--err:#f07a70;--errSoft:#3d1a18;--web:#55c6da;--webSoft:#0f2d33;--hl:#4a3f12;--hl2:#2e2912;color-scheme:dark}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--accInk)}a:hover{color:var(--acc)}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+<title>History · Estimates AI Agent</title></helmet>
+<div style="height:100vh;display:flex;background:var(--bg);color:var(--ink);overflow:hidden;">
+  <dc-import name="Sidebar" active="history" collapsed="{{ sideCollapsed }}" mobile="{{ mobile }}" open="{{ drawer }}" on-close="{{ closeDrawer }}" hint-size="264px,100%"></dc-import>
+  <main style="flex:1;min-width:0;overflow:auto;">
+    <div style="max-width:1040px;margin:0 auto;padding:24px 20px 48px;display:flex;flex-direction:column;gap:18px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}"><button onClick="{{ openDrawer }}" style="width:40px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--ink);font-size:18px;cursor:pointer;">☰</button></sc-if>
+        <div style="display:flex;flex-direction:column;gap:2px;"><h1 style="margin:0;font-size:24px;font-weight:600;letter-spacing:-0.01em;">History</h1><span style="font-size:14px;color:var(--ink2);">Every estimate and conversation, newest first.</span></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:220px;display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);"><span style="color:var(--ink3);font-size:13px;">Search</span><input value="{{ q }}" onChange="{{ onQ }}" placeholder="Client, project or file" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:inherit;font-size:14px;"></input></div>
+        <select value="{{ status }}" onChange="{{ onStatus }}" style="height:38px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px;"><option value="">Any status</option><option>In progress</option><option>Done</option><option>Sent</option></select>
+        <select value="{{ lang }}" onChange="{{ onLang }}" style="height:38px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px;"><option value="">Any language</option><option value="LV">Latvian (LV)</option><option value="DA">Danish (DA)</option><option value="EN">English (EN)</option></select>
+        <select value="{{ date }}" onChange="{{ onDate }}" style="height:38px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px;"><option value="">Any time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select>
+      </div>
+      <div style="border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden;">
+        <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}">
+          <div style="display:grid;grid-template-columns:minmax(200px,1.4fr) 110px 120px 56px 70px minmax(200px,1fr);padding:0 8px;border-bottom:1px solid var(--line);font-size:12px;font-weight:600;color:var(--ink2);">
+            <div style="padding:10px 8px;">Client / project</div><div style="padding:10px 8px;">Date</div><div style="padding:10px 8px;">Status</div><div style="padding:10px 8px;">Lang.</div><div style="padding:10px 8px;text-align:right;">AI cost</div><div style="padding:10px 8px;">Output file</div>
+          </div>
+        </sc-if>
+        <sc-for list="{{ rows }}" as="r" hint-placeholder-count="10">
+          <a href="{{ r.href }}" style="display:{{ rowDisplay }};grid-template-columns:minmax(200px,1.4fr) 110px 120px 56px 70px minmax(200px,1fr);flex-direction:column;gap:{{ rowGap }};align-items:center;padding:{{ rowPad }};border-bottom:1px solid var(--line2);text-decoration:none;color:var(--ink);font-size:14px;" style-hover="background:var(--side);">
+            <div style="padding:8px;display:flex;flex-direction:column;min-width:0;width:100%;"><span style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ r.title }}</span><span style="font-size:12.5px;color:var(--ink3);">{{ r.client }}</span></div>
+            <div style="padding:0 8px;color:var(--ink2);font-size:13px;">{{ r.date }}</div>
+            <div style="padding:0 8px;"><span style="display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:11px;font-size:12px;font-weight:500;color:{{ r.sfg }};background:{{ r.sbg }};"><span style="width:6px;height:6px;border-radius:50%;background:currentColor;"></span>{{ r.status }}</span></div>
+            <div style="padding:0 8px;"><span style="display:inline-flex;align-items:center;height:17px;padding:0 5px;border:1px solid var(--line);border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:var(--ink2);">{{ r.lang }}</span></div>
+            <div style="padding:0 8px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink2);">{{ r.cost }}</div>
+            <div style="padding:6px 8px;display:flex;align-items:center;gap:6px;min-width:0;width:100%;">
+              <sc-if value="{{ r.hasFile }}" hint-placeholder-val="{{ true }}">
+                <button onClick="{{ r.open }}" title="Open in viewer" style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit;font-size:13px;cursor:pointer;text-align:left;" style-hover="border-color:var(--acc);"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:var(--ok);">XLSX</span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ r.file }}</span></button>
+                <button onClick="{{ r.download }}" title="Download .xlsx" style="width:32px;height:32px;flex:none;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink2);font-size:14px;cursor:pointer;" style-hover="background:var(--sunk);">↓</button>
+              </sc-if>
+              <sc-if value="{{ r.noFile }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;color:var(--ink3);">Not finished yet</span></sc-if>
+            </div>
+          </a>
+        </sc-for>
+        <sc-if value="{{ none }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:48px 20px;text-align:center;"><div style="font-size:16px;font-weight:600;">{{ noneTitle }}</div><div style="font-size:14px;color:var(--ink2);">{{ noneSub }}</div><a href="chat-new.dc.html" style="font-weight:500;">Start a new estimate</a></div>
+        </sc-if>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink3);"><span>{{ countLabel }}</span><span>{{ costLabel }}</span></div>
+    </div>
+  </main>
+  <sc-if value="{{ viewer }}" hint-placeholder-val="{{ false }}">
+    <div style="width:{{ viewerW }};flex:none;border-left:1px solid var(--line);display:flex;position:{{ viewerPos }};inset:0;z-index:50;">
+      <dc-import name="DocViewer" style="flex:1;min-width:0;height:100%;display:flex;" docs="{{ vDocs }}" active="{{ vActive }}" mode="{{ vMode }}" on-close="{{ closeViewer }}" on-mode="{{ setMode }}" hint-size="100%,100%"></dc-import>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const H = [
+  ['Data center Hal B, Aarhus', 'Nordic DC Builders ApS', 'Today, 10:42', 0, 'Sent', 'DA', 0.63, 'Estimate_Denmark_Hal_B.xlsx', 'estimate', 'result'],
+  ['Braila 24, 2nd floor', 'SIA Braila Nami', 'Today, 09:50', 0, 'In progress', 'LV', 0.04, null, null, 'worklist'],
+  ['Office fit-out, Teikums', 'Teikums Biznesa Centrs', 'Today, 09:31', 0, 'In progress', 'LV', 0.18, null, null, 'working'],
+  ['Warehouse lighting retrofit', 'Baltic Logistics OÜ', 'Yesterday', 1, 'In progress', 'EN', 0.09, null, null, 'permission'],
+  ['Kontor 400 m², Vesterbro', 'Vesterbro Ejendomme', 'Yesterday', 1, 'In progress', 'DA', 0.02, null, null, 'vague'],
+  ['Skolegade 14, renovering', 'Aarhus Kommune', '25 Sep', 5, 'Done', 'DA', 0.41, 'Estimate_Skolegade_14.xlsx', 'skolegade', 'emailfail'],
+  ['Ķekava private house', 'Private client', '24 Sep', 6, 'Done', 'LV', 0.27, 'Tāme_Kekava.xlsx', 'kekava', 'nothing'],
+  ['Data center Hal A, Aarhus', 'Nordic DC Builders ApS', '22 Sep', 8, 'Sent', 'DA', 0.58, 'Estimate_Hal_A.xlsx', 'datacenter', 'resultA'],
+  ['Tallinn retail unit', 'Rimi Eesti', '19 Sep', 11, 'Sent', 'EN', 0.22, 'Estimate_Tallinn_retail.xlsx', null, 'resultT'],
+  ['Priedes iela 4, apartments', 'SIA Priedes Nami', '12 Sep', 18, 'Sent', 'LV', 0.31, 'Tāme_Priedes_4.xlsx', 'braila', 'resultP'],
+  ['Mežaparks villa', 'Private client', '28 Aug', 33, 'Done', 'LV', 0.19, 'Tāme_Mezaparks.xlsx', 'braila', 'resultP'],
+  ['Hellerup school, gym hall', 'Gentofte Kommune', '14 Aug', 47, 'Sent', 'DA', 0.36, 'Estimate_Hellerup_gym.xlsx', 'datacenter', 'resultA'],
+];
+const ST = { 'In progress': ['var(--accInk)', 'var(--accSoft)'], Done: ['var(--ok)', 'var(--okSoft)'], Sent: ['var(--ink2)', 'var(--sunk)'] };
+class Component extends DCLogic {
+  state = { q: '', status: '', lang: '', date: '', mobile: false, drawer: false, viewer: null, empty: false };
+  componentDidMount() { this.setState({ mobile: window.innerWidth < 760, empty: new URLSearchParams(location.search).has('empty') }); this._rs = () => this.setState({ mobile: window.innerWidth < 760 }); window.addEventListener('resize', this._rs); }
+  componentWillUnmount() { window.removeEventListener('resize', this._rs); }
+  renderVals() {
+    const s = this.state, q = s.q.toLowerCase(), src = s.empty ? [] : H;
+    const rows = src.filter(h => (!q || (h[0] + h[1] + (h[7] || '')).toLowerCase().includes(q)) && (!s.status || h[4] === s.status) && (!s.lang || h[5] === s.lang) && (!s.date || h[3] <= +s.date));
+    const v = s.viewer, mode = v ? (s.mobile ? 'sheet' : v.mode) : 'split';
+    return {
+      mobile: s.mobile, notMobile: !s.mobile, drawer: s.drawer, openDrawer: () => this.setState({ drawer: true }), closeDrawer: () => this.setState({ drawer: false }), sideCollapsed: v ? true : undefined,
+      q: s.q, status: s.status, lang: s.lang, date: s.date,
+      onQ: e => this.setState({ q: e.target.value }), onStatus: e => this.setState({ status: e.target.value }), onLang: e => this.setState({ lang: e.target.value }), onDate: e => this.setState({ date: e.target.value }),
+      rowDisplay: s.mobile || v ? 'flex' : 'grid', rowGap: s.mobile || v ? '4px' : '0', rowPad: s.mobile || v ? '8px 8px 12px' : '4px 8px',
+      rows: rows.map(h => ({ title: h[0], client: h[1], date: h[2], status: h[4], lang: h[5], cost: '$' + h[6].toFixed(2), file: h[7], hasFile: !!h[7], noFile: !h[7], sfg: ST[h[4]][0], sbg: ST[h[4]][1], href: 'chat.dc.html?s=' + h[9],
+        open: e => { e.preventDefault(); e.stopPropagation(); if (h[8]) this.setState({ viewer: { docs: [h[8]], active: h[8], mode: 'split' } }); },
+        download: e => { e.preventDefault(); e.stopPropagation(); } })),
+      none: !rows.length, noneTitle: s.empty ? 'No estimates yet' : 'Nothing matches these filters', noneSub: s.empty ? 'Estimates you make in chat appear here with their files and costs.' : 'Try a different search or clear a filter.',
+      countLabel: `${rows.length} conversations`, costLabel: `Total AI cost $${rows.reduce((a, h) => a + h[6], 0).toFixed(2)}`,
+      viewer: !!v, vDocs: v ? v.docs : [], vActive: v ? v.active : null, vMode: mode, viewerW: mode === 'full' || s.mobile ? '100%' : '56%', viewerPos: mode === 'full' || s.mobile ? 'fixed' : 'relative',
+      closeViewer: () => this.setState({ viewer: null }), setMode: md => this.setState({ viewer: { ...v, mode: md } }),
+    };
+  }
+}
+</script>
+</body>
+</html>

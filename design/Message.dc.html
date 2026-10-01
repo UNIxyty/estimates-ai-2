@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="width:100%;font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--ink);">
+  <sc-if value="{{ isUser }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+      <sc-if value="{{ hasChips }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;max-width:85%;">
+          <sc-for list="{{ chips }}" as="c" hint-placeholder-count="1">
+            <button onClick="{{ c.open }}" style="display:flex;align-items:center;gap:10px;padding:8px 12px 8px 8px;border:1px solid var(--line);border-radius:10px;background:var(--panel);font:inherit;color:var(--ink);cursor:pointer;text-align:left;" style-hover="border-color:var(--ink3);">
+              <span style="width:30px;height:34px;flex:none;border-radius:5px;background:{{ c.kindBg }};color:{{ c.kindFg }};display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:8.5px;font-weight:600;">{{ c.kind }}</span>
+              <span style="display:flex;flex-direction:column;line-height:1.3;"><span style="font-size:13px;font-weight:500;">{{ c.name }}</span><span style="font-size:11.5px;color:var(--ink3);">{{ c.role }}</span></span>
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ hasText }}" hint-placeholder-val="{{ true }}">
+        <div style="max-width:85%;background:var(--bubble);border-radius:18px;padding:10px 16px;font-size:15px;line-height:1.55;white-space:pre-wrap;text-wrap:pretty;">{{ text }}</div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isAgent }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;flex-direction:column;gap:14px;font-size:15px;line-height:1.65;">
+      <sc-for list="{{ blocks }}" as="b" hint-placeholder-count="2">
+        <sc-if value="{{ b.isText }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:10px;text-wrap:pretty;">
+            <sc-for list="{{ b.paras }}" as="p" hint-placeholder-count="1">
+              <div style="color:{{ p.fg }};">
+                <sc-for list="{{ p.parts }}" as="x" hint-placeholder-count="1">
+                  <sc-if value="{{ x.isText }}" hint-placeholder-val="{{ true }}"><span>{{ x.t }}</span></sc-if>
+                  <sc-if value="{{ x.isBold }}" hint-placeholder-val="{{ false }}"><b style="font-weight:600;">{{ x.t }}</b></sc-if>
+                  <sc-if value="{{ x.isRow }}" hint-placeholder-val="{{ false }}"><button onClick="{{ x.open }}" style="display:inline-flex;align-items:center;height:24px;padding:0 8px;margin:0 1px;border:0;border-radius:6px;background:var(--accSoft);color:var(--accInk);font-family:inherit;font-size:13px;font-weight:500;vertical-align:1px;cursor:pointer;" style-hover="background:var(--acc);color:#fff;">{{ x.t }}</button></sc-if>
+                  <sc-if value="{{ x.isFile }}" hint-placeholder-val="{{ false }}"><button onClick="{{ x.open }}" style="display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 8px;margin:0 1px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;vertical-align:1px;cursor:pointer;" style-hover="border-color:var(--ink3);"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:{{ x.kindFg }};">{{ x.kind }}</span>{{ x.t }}</button></sc-if>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ b.isSteps }}" hint-placeholder-val="{{ false }}">
+          <div style="border:1px solid var(--line);border-radius:12px;background:var(--panel);font-size:13.5px;line-height:1.45;">
+            <button onClick="{{ b.toggle }}" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;border:0;background:transparent;color:var(--ink);font:inherit;cursor:pointer;text-align:left;">
+              <sc-if value="{{ b.running }}" hint-placeholder-val="{{ false }}">{{ spinner }}</sc-if>
+              <sc-if value="{{ b.done }}" hint-placeholder-val="{{ true }}"><span style="width:16px;height:16px;flex:none;border-radius:50%;background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;">✓</span></sc-if>
+              <sc-if value="{{ b.waiting }}" hint-placeholder-val="{{ false }}"><span style="width:16px;height:16px;flex:none;border-radius:50%;border:2px solid var(--warn);box-sizing:border-box;"></span></sc-if>
+              <span style="font-weight:500;">{{ b.title }}</span>
+              <span style="color:var(--ink3);font-size:12.5px;">{{ b.elapsed }}</span>
+              <span style="margin-left:auto;color:var(--ink3);font-size:12.5px;">{{ b.toggleLabel }}</span>
+            </button>
+            <sc-if value="{{ b.open }}" hint-placeholder-val="{{ false }}">
+              <div style="border-top:1px solid var(--line2);padding:8px 14px 12px;display:flex;flex-direction:column;">
+                <sc-for list="{{ b.items }}" as="s" hint-placeholder-count="5">
+                  <div style="display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:10px;align-items:start;padding:5px 0;">
+                    <span style="width:8px;height:8px;margin-top:6px;justify-self:center;border-radius:50%;background:{{ s.dot }};border:1.5px solid {{ s.ring }};box-sizing:border-box;"></span>
+                    <div style="display:flex;flex-direction:column;gap:5px;min-width:0;">
+                      <span style="color:{{ s.fg }};font-weight:{{ s.fw }};">{{ s.label }}</span>
+                      <sc-if value="{{ s.hasPct }}" hint-placeholder-val="{{ false }}"><div style="height:4px;border-radius:2px;background:var(--sunk);overflow:hidden;max-width:320px;"><div style="height:100%;width:{{ s.pct }}%;background:var(--acc);transition:width .4s;"></div></div></sc-if>
+                      <sc-if value="{{ s.sub }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:var(--ink3);">{{ s.sub }}</span></sc-if>
+                    </div>
+                    <span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:{{ s.metaFg }};white-space:nowrap;">{{ s.meta }}</span>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ b.running }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;gap:8px;padding-top:8px;"><button onClick="{{ b.stop }}" style="height:28px;padding:0 10px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink2);font:inherit;font-size:12.5px;cursor:pointer;">Stop</button><span style="font-size:12px;color:var(--ink3);align-self:center;">You can leave this page. The agent keeps working.</span></div>
+                </sc-if>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ b.isCard }}" hint-placeholder-val="{{ false }}">
+          <dc-import name="InlineCard" kind="{{ b.card }}" state="{{ b.state }}" on-action="{{ onAction }}" hint-size="100%,150px"></dc-import>
+        </sc-if>
+
+        <sc-if value="{{ b.isDoc }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:14px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel);flex-wrap:wrap;max-width:560px;">
+            <button onClick="{{ b.open }}" style="display:flex;align-items:center;gap:14px;flex:1;min-width:220px;border:0;padding:0;background:transparent;font:inherit;color:var(--ink);text-align:left;cursor:pointer;">
+              <span style="width:40px;height:48px;flex:none;border-radius:7px;background:var(--okSoft);color:var(--ok);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;">XLSX</span>
+              <span style="display:flex;flex-direction:column;gap:3px;line-height:1.3;min-width:0;">
+                <span style="display:flex;align-items:center;gap:8px;"><span style="font-weight:600;font-size:14px;">{{ b.name }}</span><span style="display:inline-flex;align-items:center;height:17px;padding:0 5px;border:1px solid var(--line);border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:var(--ink2);">{{ b.lang }}</span></span>
+                <span style="font-size:12.5px;color:var(--ink3);">{{ b.meta }}</span>
+              </span>
+            </button>
+            <div style="display:flex;gap:6px;">
+              <button onClick="{{ b.open }}" style="height:34px;padding:0 14px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--ink);font:inherit;font-size:13px;font-weight:500;cursor:pointer;" style-hover="background:var(--sunk);">Open</button>
+              <a href="#" style="height:34px;display:inline-flex;align-items:center;padding:0 14px;border-radius:9px;background:var(--acc);color:#fff;text-decoration:none;font-size:13px;font-weight:600;">Download .xlsx</a>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ b.isWeb }}" hint-placeholder-val="{{ false }}">
+          <div style="border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden;font-size:13px;line-height:1.4;">
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;color:var(--web);background:var(--webSoft);padding:2px 5px;border-radius:3px;">WEB</span>
+              <span style="font-weight:600;">Web-sourced prices</span><span style="color:var(--ink3);font-size:12.5px;">{{ b.count }}</span>
+            </div>
+            <div style="overflow-x:auto;">
+              <div style="min-width:680px;">
+                <div style="display:grid;grid-template-columns:minmax(200px,1.6fr) 96px 56px 100px 130px 124px;font-size:12px;font-weight:600;color:var(--ink2);border-bottom:1px solid var(--line2);">
+                  <div style="padding:8px 14px;">Product</div><div style="padding:8px;text-align:right;">Unit price</div><div style="padding:8px;text-align:right;">Qty</div><div style="padding:8px;text-align:right;">Total</div><div style="padding:8px;">Source</div><div style="padding:8px 14px 8px 8px;">Location</div>
+                </div>
+                <sc-for list="{{ b.rows }}" as="w" hint-placeholder-count="4">
+                  <div style="display:grid;grid-template-columns:minmax(200px,1.6fr) 96px 56px 100px 130px 124px;align-items:center;border-bottom:1px solid var(--line2);font-variant-numeric:tabular-nums;">
+                    <div style="padding:8px 14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ w.p }}</div>
+                    <div style="padding:8px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12px;">{{ w.up }}</div>
+                    <div style="padding:8px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12px;">{{ w.q }}</div>
+                    <div style="padding:8px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12px;">{{ w.t }}</div>
+                    <div style="padding:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><a href="{{ w.url }}" target="_blank" style="color:var(--accInk);">{{ w.src }}</a></div>
+                    <div style="padding:6px 14px 6px 8px;"><button onClick="{{ w.open }}" style="height:24px;padding:0 8px;border:0;border-radius:6px;background:var(--accSoft);color:var(--accInk);font:inherit;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;" style-hover="background:var(--acc);color:#fff;">{{ w.loc }}</button></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <sc-if value="{{ b.hasMore }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ b.toggleMore }}" style="width:100%;height:36px;border:0;background:transparent;color:var(--accInk);font:inherit;font-size:13px;font-weight:500;cursor:pointer;" style-hover="background:var(--sunk);">{{ b.moreLabel }}</button>
+            </sc-if>
+          </div>
+        </sc-if>
+      </sc-for>
+
+      <sc-if value="{{ hasFooter }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:4px;margin-top:-4px;font-size:12px;color:var(--ink3);line-height:1;position:relative;">
+          <span onMouseEnter="{{ tipOn }}" onMouseLeave="{{ tipOff }}" style="display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 8px 0 0;cursor:default;">
+            <span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:5px;border:1px solid var(--line);font-weight:500;color:var(--ink2);">{{ tier }}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;">{{ cost }}</span>
+          </span>
+          <sc-if value="{{ tip }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:0;bottom:30px;z-index:5;padding:8px 10px;border-radius:8px;background:var(--ink);color:var(--bg);font-family:'IBM Plex Mono',monospace;font-size:11.5px;line-height:1.6;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,0.2);">{{ tokIn }}<br>{{ tokOut }}</div>
+          </sc-if>
+          <button onClick="{{ copy }}" style="height:26px;padding:0 8px;border:0;border-radius:6px;background:transparent;color:var(--ink3);font:inherit;cursor:pointer;" style-hover="background:var(--sunk);color:var(--ink);">{{ copyLabel }}</button>
+          <button onClick="{{ retry }}" style="height:26px;padding:0 8px;border:0;border-radius:6px;background:transparent;color:var(--ink3);font:inherit;cursor:pointer;" style-hover="background:var(--sunk);color:var(--ink);">Retry</button>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:720,&quot;height&quot;:400},&quot;msg&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;},&quot;onOpenDoc&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(jump) =&gt; void&quot;},&quot;onAction&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(kind, action) =&gt; void&quot;}}">
+const KIND = n => { const e = (n || '').split('.').pop().toLowerCase(); return e === 'pdf' ? ['PDF', 'var(--err)', 'var(--errSoft)'] : e === 'docx' ? ['DOCX', 'var(--accInk)', 'var(--accSoft)'] : ['XLSX', 'var(--ok)', 'var(--okSoft)']; };
+class Component extends DCLogic {
+  state = { open: {}, more: {}, tip: false, copied: false };
+  open(j) { this.props.onOpenDoc && this.props.onOpenDoc({ ...j, key: Date.now() }); }
+  renderVals() {
+    const m = this.props.msg || { role: 'agent', blocks: [] };
+    const part = x => typeof x === 'string' ? { isText: true, t: x } : x.b ? { isBold: true, t: x.b } : x.row ? { isRow: true, t: x.row, open: () => this.open({ doc: x.doc || 'estimate', sheet: x.sheet, row: x.n }) } : x.file ? { isFile: true, t: x.file, kind: KIND(x.file)[0], kindFg: KIND(x.file)[1], open: () => this.open({ doc: x.doc }) } : { isText: true, t: '' };
+    const blocks = (m.blocks || []).map((b, i) => {
+      const o = { isText: b.kind === 'text' || b.kind === 'note', isSteps: b.kind === 'steps', isCard: b.kind === 'card', isDoc: b.kind === 'doc', isWeb: b.kind === 'web' };
+      if (o.isText) o.paras = b.paras.map(p => ({ fg: b.tone === 'warn' ? 'var(--warn)' : 'var(--ink)', parts: p.map(part) }));
+      if (o.isSteps) {
+        const open = this.state.open[i] ?? b.status !== 'done';
+        Object.assign(o, { running: b.status === 'running', done: b.status === 'done', waiting: b.status === 'waiting', title: b.title, elapsed: b.elapsed || '', open, toggleLabel: open ? 'Hide steps' : 'Show steps',
+          toggle: () => this.setState(s => ({ open: { ...s.open, [i]: !open } })), stop: () => this.props.onAction && this.props.onAction('steps', 'stop'),
+          items: b.items.map(s => ({ label: s.label, meta: s.meta || '', sub: s.sub || '', hasPct: s.pct != null, pct: s.pct || 0,
+            dot: s.status === 'done' ? 'var(--ok)' : s.status === 'active' ? 'var(--acc)' : s.status === 'warn' ? 'var(--warn)' : 'transparent',
+            ring: s.status === 'done' ? 'var(--ok)' : s.status === 'active' ? 'var(--acc)' : s.status === 'warn' ? 'var(--warn)' : 'var(--ink3)',
+            fg: s.status === 'todo' ? 'var(--ink3)' : 'var(--ink)', fw: s.status === 'active' ? 500 : 400, metaFg: s.status === 'warn' ? 'var(--warn)' : 'var(--ink3)' })) });
+      }
+      if (o.isCard) Object.assign(o, { card: b.card, state: b.state });
+      if (o.isDoc) Object.assign(o, { name: b.name, lang: b.lang, meta: b.meta, open: () => this.open({ doc: b.doc }) });
+      if (o.isWeb) { const all = this.state.more[i]; const rows = all ? b.rows : b.rows.slice(0, b.show || 5);
+        Object.assign(o, { count: `${b.rows.length} rows · check these before sending`, hasMore: b.rows.length > (b.show || 5), moreLabel: all ? 'Show fewer' : `Show all ${b.rows.length}`, toggleMore: () => this.setState(s => ({ more: { ...s.more, [i]: !all } })),
+          rows: rows.map(w => ({ ...w, url: 'https://' + w.src, open: () => this.open({ doc: 'estimate', sheet: w.sheet, row: w.n }) })) }); }
+      return o;
+    });
+    const plain = (m.blocks || []).filter(b => b.kind === 'text').map(b => b.paras.map(p => p.map(x => typeof x === 'string' ? x : x.b || x.row || x.file || '').join('')).join('\n\n')).join('\n\n');
+    return {
+      isUser: m.role === 'user', isAgent: m.role !== 'user', text: m.text || '', hasText: !!m.text,
+      hasChips: !!(m.chips && m.chips.length), chips: (m.chips || []).map(c => { const k = KIND(c.name); return { name: c.name, role: c.role || '', kind: k[0], kindFg: k[1], kindBg: k[2], open: () => c.doc && this.open({ doc: c.doc }) }; }),
+      blocks, onAction: (k, a) => this.props.onAction && this.props.onAction(k, a),
+      hasFooter: !!m.tier, tier: m.tier, cost: m.cost, tip: this.state.tip, tokIn: `${(m.tokIn || 0).toLocaleString('en-US')} input tokens`, tokOut: `${(m.tokOut || 0).toLocaleString('en-US')} output tokens`,
+      tipOn: () => this.setState({ tip: true }), tipOff: () => this.setState({ tip: false }),
+      copyLabel: this.state.copied ? 'Copied' : 'Copy',
+      copy: () => { try { navigator.clipboard.writeText(plain); } catch (e) {} this.setState({ copied: true }); setTimeout(() => this.setState({ copied: false }), 1500); },
+      retry: () => this.props.onAction && this.props.onAction('message', 'retry'),
+      spinner: React.createElement('span', { style: { width: 16, height: 16, flex: 'none', borderRadius: '50%', border: '2px solid var(--accSoft)', borderTopColor: 'var(--acc)', animation: 'spin .8s linear infinite', boxSizing: 'border-box' } }),
+    };
+  }
+}
+</script>
+</body>
+</html>

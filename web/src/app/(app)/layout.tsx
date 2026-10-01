@@ -1,5 +1,5 @@
 import { pageUser } from '@/lib/pageAuth';
-import { Nav } from '@/components/Nav';
+import { Shell } from '@/components/Shell';
 import { UserProvider } from '@/components/UserContext';
 
 export const dynamic = 'force-dynamic';
@@ -10,11 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const u = { id: user.id, email: user.email, name: user.name, role: user.role };
   return (
     <UserProvider user={u}>
-      <header>
-        <strong>Estimates AI Agent</strong>
-        <Nav user={u} />
-      </header>
-      <main>{children}</main>
+      <Shell>{children}</Shell>
     </UserProvider>
   );
 }

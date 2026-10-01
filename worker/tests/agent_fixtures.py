@@ -161,3 +161,12 @@ def tool_response(name: str, inp: dict, tool_id: str = "t1", **u) -> dict:
     return {"output": {"message": {"role": "assistant", "content": [
         {"toolUse": {"toolUseId": tool_id, "name": name, "input": inp}}]}},
         "stopReason": "tool_use", "usage": usage(**u)}
+
+
+def aws_access_denied(operation: str = "Converse") -> Exception:
+    """The exception real boto3 raises: a modelled subclass (botocore.errorfactory.AccessDeniedException),
+    not a bare ClientError."""
+    import boto3
+    cls = boto3.client("bedrock-runtime", region_name="eu-north-1").exceptions.AccessDeniedException
+    return cls({"Error": {"Code": "AccessDeniedException", "Message": "Model access is denied due to IAM user or "
+                "service role is not authorized to perform the required AWS Marketplace actions"}}, operation)

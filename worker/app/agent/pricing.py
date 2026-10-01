@@ -104,7 +104,8 @@ class PricingEngine:
                  target_rate: float | None = None, task: str = "fill_blank", forced_tier: str | None = None,
                  progress: Callable[[str, int, int], None] | None = None,
                  web_lookup: Callable[[RowSpec], dict | None] | None = None,
-                 should_stop: Callable[[], bool] | None = None, use_model: bool = True):
+                 should_stop: Callable[[], bool] | None = None, use_model: bool = True,
+                 current: Callable[[str, str], None] | None = None):
         self.kb, self.allowed, self.denied, self.ctx = kb, set(allowed), set(denied), ctx
         self.default_rate = kb.default_hourly_rate(self.allowed)
         self.target_rate = target_rate
@@ -113,6 +114,7 @@ class PricingEngine:
         self.web_lookup = web_lookup
         self.should_stop = should_stop or (lambda: False)
         self.use_model = use_model
+        self.current = current or (lambda stage, text: None)  # "Now: <item>" in the working-steps block
         self.stats = {"rows": 0, "exact": 0, "semantic": 0, "norm": 0, "model": 0, "web": 0, "none": 0,
                       "pending_permission": 0, "model_calls": 0, "rows_without_model": 0}
 
@@ -285,20 +287,25 @@ class PricingEngine:
         "norm_h null and unit_material null. Never invent supplier prices."
     )
 
+    def _model_fallback(self, todo: list[PricedRow]) -> None:
+        """Deterministic fallback: accept the best allowed candidate above the accept bar, flagged CHECK."""
+        for pr in todo:
+            allowed = [(i, s) for i, s in pr._cands if i.file_id in self.allowed]  # type: ignore[attr-defined]
+            if not allowed:
+                continue
+            i, s = allowed[0]
+            if not pr.priced and s >= (SEM_ACCEPT if self.kb.has_embeddings else LEX_ACCEPT):
+                self._apply_item(pr, i, "semantic", s, 50,
+                                 f"Weak match ({s:.0%}) to “{i.text}” in {i.file_name} row {i.row} — check")
+                self.stats["semantic"] += 1
+
     def _model(self, rows: list[PricedRow]) -> None:
         todo = [pr for pr in rows if pr.source not in ("pending_permission",)
                 and (not pr.priced or (pr.confidence == "low" and pr.source != "norm"))
                 and getattr(pr, "_cands", None)]
         todo = [pr for pr in todo if any(i.file_id in self.allowed for i, _ in pr._cands)]  # type: ignore[attr-defined]
         if not todo or not self.use_model or not llm.available():
-            # Deterministic fallback: accept the best allowed candidate above the accept bar, flagged CHECK.
-            for pr in todo:
-                allowed = [(i, s) for i, s in pr._cands if i.file_id in self.allowed]  # type: ignore[attr-defined]
-                i, s = allowed[0]
-                if not pr.priced and s >= (SEM_ACCEPT if self.kb.has_embeddings else LEX_ACCEPT):
-                    self._apply_item(pr, i, "semantic", s, 50,
-                                     f"Weak match ({s:.0%}) to “{i.text}” in {i.file_name} row {i.row} — check")
-                    self.stats["semantic"] += 1
+            self._model_fallback(todo)
             return
         for start in range(0, len(todo), MODEL_BATCH):
             if self.should_stop():
@@ -319,8 +326,16 @@ class PricingEngine:
             import json
             prompt = (f"Hourly rate for this estimate: {self.target_rate or self.default_rate}\n"
                       f"Rows:\n{json.dumps(payload_rows, ensure_ascii=False)}")
-            out = llm.complete_json(self.task, self.PRICE_SYSTEM, prompt, self.PRICE_SCHEMA, ctx=self.ctx,
-                                    forced_tier=self.forced_tier, max_tokens=8000)
+            try:
+                out = llm.complete_json(self.task, self.PRICE_SYSTEM, prompt, self.PRICE_SCHEMA, ctx=self.ctx,
+                                        forced_tier=self.forced_tier, max_tokens=8000)
+            except (llm.LLMUnavailable, llm.LLMError) as e:
+                # A refused or failing model must not sink the run: the rest of the rows take the deterministic
+                # path (weak matches flagged CHECK) and go on to web search / NO PRICE. The caller warns.
+                log.warning("pricing model call failed, falling back: %s", e)
+                self.stats["model_error"] = str(e)[:300]
+                self._model_fallback(todo[start:])
+                return
             self.stats["model_calls"] += 1
             by_rid = {pr.spec.rid: pr for pr in batch}
             for r in out.get("rows", []):
@@ -360,6 +375,7 @@ class PricingEngine:
         for n, pr in enumerate(todo, 1):
             if self.should_stop():
                 raise llm.Cancelled()
+            self.current("web", pr.spec.text)
             found = self.web_lookup(pr.spec)
             if found and found.get("unit_price") is not None:
                 pr.web = found
@@ -386,7 +402,9 @@ class PricingEngine:
         self.progress("exact", len(rows), len(rows))
         self._semantic(rows, embeddings)
         for pr in rows:
-            if not pr.priced and pr.blocked_file and pr.blocked_file["file_id"] not in self.denied:
+            # Rows the user already denied a file for go on to norms / model / web, never to another card.
+            if (not pr.priced and pr.blocked_file and pr.blocked_file["file_id"] not in self.denied
+                    and pr.spec.rid not in (denied_rows or ())):
                 pr.source = "pending_permission"
                 pr.reason = f"Best match is in {pr.blocked_file['file_name']}, which is not selected for this chat"
         self._norms(rows)

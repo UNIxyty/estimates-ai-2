@@ -70,6 +70,9 @@ export async function decideCard(
     const f = await sql`SELECT id FROM files WHERE id = ${fileId} AND status = 'analysed' AND deleted_at IS NULL`;
     if (!f[0]) throw badRequest('file_not_analysed');
     decisionData = { file_id: fileId };
+  } else if (action === 'generate') {
+    // Optional Language selector on the structure card (defaults to the template's language).
+    if (typeof data.language === 'string' && /^[A-Za-z]{2}$/.test(data.language)) decisionData = { language: data.language.toUpperCase() };
   } else if (action === 'answer') {
     if (data.answers === null || typeof data.answers !== 'object' || Array.isArray(data.answers)) {
       throw badRequest('answers_required');

@@ -1,15 +1,13 @@
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import { DesignPending } from '@/components/DesignPending';
 import { SetPasswordForm } from './SetPasswordForm';
+
+export const metadata: Metadata = { title: 'Set password · Estimates AI Agent' };
 
 export default function SetPasswordPage() {
   return (
-    <main>
-      <DesignPending />
-      <h1>Set your password</h1>
-      <Suspense>
-        <SetPasswordForm />
-      </Suspense>
-    </main>
+    <Suspense>
+      <SetPasswordForm />
+    </Suspense>
   );
 }

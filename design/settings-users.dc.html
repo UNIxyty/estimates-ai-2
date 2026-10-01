@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('eaa-theme')||'light'}catch(e){}</script>
+<style>
+:root,[data-theme=light]{--bg:#fcfcfd;--side:#f5f6f8;--panel:#ffffff;--sunk:#eef0f3;--bubble:#eceff4;--line:#e1e4e9;--line2:#eceef2;--ink:#15181c;--ink2:#4a525c;--ink3:#737b86;--acc:#1f5eff;--accSoft:#e7eeff;--accInk:#1747c9;--ok:#177a43;--okSoft:#e3f3e9;--warn:#9a5700;--warnSoft:#fcefd8;--err:#bf3228;--errSoft:#fbe6e4;--web:#0d6e84;--webSoft:#dff1f5;--hl:#fff1b3;--hl2:#fff8d6;color-scheme:light}
+[data-theme=dark]{--bg:#141619;--side:#101214;--panel:#1a1d21;--sunk:#23272c;--bubble:#262a30;--line:#2d3238;--line2:#23272c;--ink:#e7e9ec;--ink2:#adb4bc;--ink3:#7f8791;--acc:#4a7dff;--accSoft:#1b2851;--accInk:#9ab7ff;--ok:#5cc98a;--okSoft:#14301f;--warn:#f0b04a;--warnSoft:#3a2a10;--err:#f07a70;--errSoft:#3d1a18;--web:#55c6da;--webSoft:#0f2d33;--hl:#4a3f12;--hl2:#2e2912;color-scheme:dark}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--accInk)}a:hover{color:var(--acc)}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+<title>Users · Settings</title></helmet>
+<div style="height:100vh;display:flex;background:var(--bg);color:var(--ink);overflow:hidden;">
+  <dc-import name="Sidebar" active="settings" mobile="{{ mobile }}" open="{{ drawer }}" on-close="{{ closeDrawer }}" hint-size="264px,100%"></dc-import>
+  <main style="flex:1;min-width:0;overflow:auto;">
+    <div style="max-width:1080px;margin:0 auto;padding:24px 20px 48px;display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start;">
+      <div style="width:200px;flex:none;display:flex;flex-direction:column;gap:8px;">
+        <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}"><button onClick="{{ openDrawer }}" style="width:40px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--ink);font-size:18px;cursor:pointer;">☰</button></sc-if>
+        <dc-import name="SettingsNav" active="users" hint-size="200px,200px"></dc-import>
+      </div>
+      <div style="flex:1;min-width:300px;display:flex;flex-direction:column;gap:20px;">
+        <div style="display:flex;flex-direction:column;gap:2px;"><h1 style="margin:0;font-size:22px;font-weight:600;">Users</h1><span style="font-size:14px;color:var(--ink2);">Only admins see this page. The app is invite-only: people can't sign up on their own.</span></div>
+        <sc-if value="{{ denied }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:24px;border:1px solid var(--line);border-radius:14px;background:var(--panel);display:flex;flex-direction:column;gap:6px;"><span style="font-size:15px;font-weight:600;">You don't have access to this page</span><span style="font-size:14px;color:var(--ink2);">Ask an admin (Anna Bērziņa) if you need to invite someone.</span></div>
+        </sc-if>
+        <sc-if value="{{ admin }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:12px;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);">
+            <span style="font-size:15px;font-weight:600;">Invite someone</span>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <input value="{{ invEmail }}" onChange="{{ onInvEmail }}" onKeyDown="{{ onInvKey }}" placeholder="name@company.com" style="flex:1;min-width:220px;height:40px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;font-size:14px;outline-color:var(--acc);"></input>
+              <select value="{{ invRole }}" onChange="{{ onInvRole }}" style="height:40px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;font-size:13.5px;"><option>Estimator</option><option>Admin</option></select>
+              <button onClick="{{ invite }}" style="height:40px;padding:0 16px;border:0;border-radius:10px;background:var(--acc);color:#fff;font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;">Send invite</button>
+            </div>
+            <span style="font-size:12.5px;color:{{ invMsgFg }};">{{ invMsg }}</span>
+          </div>
+          <div style="border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow-x:auto;">
+            <div style="min-width:620px;">
+              <div style="display:grid;grid-template-columns:minmax(220px,1fr) 140px 120px 110px 90px;font-size:12px;font-weight:600;color:var(--ink2);border-bottom:1px solid var(--line);"><div style="padding:10px 16px;">Person</div><div style="padding:10px 8px;">Role</div><div style="padding:10px 8px;">Status</div><div style="padding:10px 8px;">Last active</div><div></div></div>
+              <sc-for list="{{ users }}" as="u" hint-placeholder-count="5">
+                <div style="display:grid;grid-template-columns:minmax(220px,1fr) 140px 120px 110px 90px;align-items:center;border-bottom:1px solid var(--line2);font-size:13.5px;">
+                  <div style="padding:10px 16px;display:flex;align-items:center;gap:10px;min-width:0;"><span style="width:30px;height:30px;flex:none;border-radius:50%;background:var(--sunk);color:var(--ink2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;">{{ u.ini }}</span><span style="display:flex;flex-direction:column;min-width:0;"><span style="font-weight:500;">{{ u.name }}</span><span style="font-size:12px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ u.email }}</span></span></div>
+                  <div style="padding:6px 8px;"><select value="{{ u.role }}" onChange="{{ u.setRole }}" disabled="{{ u.self }}" style="height:32px;width:100%;padding:0 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px;"><option>Estimator</option><option>Admin</option></select></div>
+                  <div style="padding:8px;"><span style="display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:11px;font-size:12px;font-weight:500;color:{{ u.sfg }};background:{{ u.sbg }};"><span style="width:6px;height:6px;border-radius:50%;background:currentColor;"></span>{{ u.status }}</span></div>
+                  <div style="padding:8px;color:var(--ink2);font-size:13px;">{{ u.last }}</div>
+                  <div style="padding:8px 12px 8px 0;display:flex;justify-content:flex-end;">
+                    <sc-if value="{{ u.canRemove }}" hint-placeholder-val="{{ true }}"><button onClick="{{ u.remove }}" style="height:30px;padding:0 10px;border:0;border-radius:7px;background:{{ u.rmBg }};color:{{ u.rmFg }};font:inherit;font-size:12.5px;font-weight:{{ u.rmFw }};cursor:pointer;">{{ u.rmLabel }}</button></sc-if>
+                    <sc-if value="{{ u.self }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:var(--ink3);">You</span></sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="font-size:12.5px;color:var(--ink3);line-height:1.5;">Estimators can make estimates and manage the knowledge base. Admins can also invite people, set budgets and change model routing.</div>
+        </sc-if>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const USERS = [['Mārtiņš Kalniņš', 'm.kalnins@elektro.lv', 'Admin', 'Active', 'Now', 1], ['Anna Bērziņa', 'a.berzina@elektro.lv', 'Admin', 'Active', 'Today'], ['Jens Larsen', 'jens@elektroservis.dk', 'Estimator', 'Active', 'Yesterday'], ['Ilze Ozola', 'i.ozola@elektro.lv', 'Estimator', 'Active', '26 Sep'], ['Kristaps Liepa', 'k.liepa@elektro.lv', 'Estimator', 'Invite sent', '—'], ['Mette Holm', 'mette@elektroservis.dk', 'Estimator', 'Invite expired', '—']];
+const ST = { Active: ['var(--ok)', 'var(--okSoft)'], 'Invite sent': ['var(--accInk)', 'var(--accSoft)'], 'Invite expired': ['var(--warn)', 'var(--warnSoft)'] };
+class Component extends DCLogic {
+  state = { mobile: false, drawer: false, users: USERS.map((u, i) => ({ i, name: u[0], email: u[1], role: u[2], status: u[3], last: u[4], self: !!u[5] })), confirm: null, invEmail: '', invRole: 'Estimator', invMsg: 'They get an email with a link to set a password. The link works for 7 days.', invErr: false, denied: false };
+  componentDidMount() { this.setState({ mobile: window.innerWidth < 760, denied: new URLSearchParams(location.search).get('role') === 'estimator' }); this._rs = () => this.setState({ mobile: window.innerWidth < 760 }); window.addEventListener('resize', this._rs); }
+  componentWillUnmount() { window.removeEventListener('resize', this._rs); }
+  renderVals() {
+    const s = this.state;
+    const invite = () => { const e = s.invEmail.trim(); if (!/^\S+@\S+\.\S+$/.test(e)) return this.setState({ invMsg: 'Enter a full email address.', invErr: true }); this.setState({ users: [...s.users, { i: Date.now(), name: e.split('@')[0], email: e, role: s.invRole, status: 'Invite sent', last: '—' }], invEmail: '', invMsg: `Invite sent to ${e}.`, invErr: false }); };
+    return {
+      mobile: s.mobile, drawer: s.drawer, openDrawer: () => this.setState({ drawer: true }), closeDrawer: () => this.setState({ drawer: false }),
+      denied: s.denied, admin: !s.denied,
+      invEmail: s.invEmail, onInvEmail: e => this.setState({ invEmail: e.target.value }), onInvKey: e => e.key === 'Enter' && invite(), invRole: s.invRole, onInvRole: e => this.setState({ invRole: e.target.value }), invite,
+      invMsg: s.invMsg, invMsgFg: s.invErr ? 'var(--err)' : 'var(--ink3)',
+      users: s.users.map(u => { const c = s.confirm === u.i, inv = u.status !== 'Active'; return { ...u, ini: u.name.split(/[\s.]/).map(x => x[0]).join('').slice(0, 2).toUpperCase(), sfg: ST[u.status][0], sbg: ST[u.status][1], canRemove: !u.self,
+        setRole: e => this.setState({ users: s.users.map(x => x.i === u.i ? { ...x, role: e.target.value } : x) }),
+        rmLabel: c ? 'Confirm' : inv ? (u.status === 'Invite expired' ? 'Resend' : 'Cancel invite') : 'Remove', rmBg: c ? 'var(--err)' : 'transparent', rmFg: c ? '#fff' : u.status === 'Invite expired' ? 'var(--accInk)' : 'var(--ink2)', rmFw: c ? 600 : 400,
+        remove: () => { if (u.status === 'Invite expired') return this.setState({ users: s.users.map(x => x.i === u.i ? { ...x, status: 'Invite sent' } : x) }); if (c) this.setState({ users: s.users.filter(x => x.i !== u.i), confirm: null }); else this.setState({ confirm: u.i }); } }; }),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -8,6 +8,8 @@ from .. import db
 # Highest priority first.
 MARKER_PRIORITY = ("EDITED", "NO PRICE", "WEB", "CHECK")
 _IMPLIED = {"edited": "EDITED", "none": "NO PRICE", "web": "WEB"}
+# "Needs attention" in the viewer: low confidence or no price (a row counts once).
+ATTENTION = frozenset({"CHECK", "NO PRICE"})
 _COUNT_KEYS = {"WEB": "web", "CHECK": "check", "NO PRICE": "no_price", "EDITED": "edited"}
 
 
@@ -47,12 +49,13 @@ def load_markers(document_id: str, sheet_name: str) -> dict[int, dict]:
 
 
 def marker_counts(document_id: str) -> dict[str, dict[str, int]]:
-    """Per sheet: ``{web, check, no_price, edited, flagged}`` (a row counts once per flag it carries)."""
+    """Per sheet: ``{web, check, no_price, edited, flagged, attention}`` (a row counts once per flag it carries;
+    ``flagged`` and ``attention`` count a row once)."""
     rows = db.fetchall(
         "SELECT sheet_name, flags, price_source FROM estimate_rows WHERE document_id = %s", (document_id,))
     out: dict[str, dict[str, int]] = {}
     for r in rows:
-        c = out.setdefault(r["sheet_name"], {"web": 0, "check": 0, "no_price": 0, "edited": 0, "flagged": 0})
+        c = out.setdefault(r["sheet_name"], empty_counts())
         eff = effective_flags(r["flags"], r["price_source"])
         for f in eff:
             k = _COUNT_KEYS.get(f)
@@ -60,4 +63,10 @@ def marker_counts(document_id: str) -> dict[str, dict[str, int]]:
                 c[k] += 1
         if marker_for(eff):
             c["flagged"] += 1
+        if eff & ATTENTION:
+            c["attention"] += 1
     return out
+
+
+def empty_counts() -> dict[str, int]:
+    return {"web": 0, "check": 0, "no_price": 0, "edited": 0, "flagged": 0, "attention": 0}

@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import threading
+import time
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -22,6 +23,10 @@ log = logging.getLogger(__name__)
 
 class LLMUnavailable(RuntimeError):
     """No model access (disabled, or credentials missing/rejected)."""
+
+
+class ModelUnavailable(LLMUnavailable):
+    """One model is refused (AccessDenied); the others may still work."""
 
 
 class LLMError(RuntimeError):
@@ -59,6 +64,10 @@ _factory_lock = threading.Lock()
 _client = None
 _factory: Callable[[], Any] | None = None
 _unavailable_reason: str | None = None
+# AccessDenied names one model (not enabled for the account, Marketplace subscription pending, …): only that model
+# is skipped, and only for a while, so the other tiers and embeddings keep working and a fix is picked up.
+MODEL_DENIED_TTL_S = 600.0
+_model_unavailable: dict[str, tuple[float, str]] = {}
 
 
 def set_bedrock_factory(factory: Callable[[], Any] | None) -> None:
@@ -66,6 +75,7 @@ def set_bedrock_factory(factory: Callable[[], Any] | None) -> None:
     global _client, _factory, _unavailable_reason
     with _factory_lock:
         _factory, _client, _unavailable_reason = factory, None, None
+        _model_unavailable.clear()
 
 
 def bedrock():
@@ -94,6 +104,23 @@ def available() -> bool:
         return boto3.Session().get_credentials() is not None
     except Exception:  # noqa: BLE001
         return False
+
+
+def _mark_model_unavailable(model_id: str, reason: str) -> None:
+    _model_unavailable[model_id] = (time.monotonic() + MODEL_DENIED_TTL_S, reason)
+    log.error("model %s unavailable for %ds: %s", model_id, int(MODEL_DENIED_TTL_S), reason)
+
+
+def model_unavailable_reason(model_id: str) -> str | None:
+    hit = _model_unavailable.get(model_id)
+    if hit and hit[0] > time.monotonic():
+        return hit[1]
+    _model_unavailable.pop(model_id, None)
+    return None
+
+
+def unavailable_models() -> dict[str, str]:
+    return {m: r for m in list(_model_unavailable) if (r := model_unavailable_reason(m))}
 
 
 def _mark_unavailable(reason: str) -> None:
@@ -156,8 +183,29 @@ def _usage_from(u: dict | None) -> Usage:
                  cache_write_tokens=int(u.get("cacheWriteInputTokens", 0) or 0))
 
 
-def _handle_client_error(e: Exception) -> None:
+def _is_aws_error(e: BaseException) -> bool:
+    """botocore raises modelled subclasses (botocore.errorfactory.AccessDeniedException, ThrottlingException, …),
+    so match by class hierarchy, not by the class name "ClientError"."""
+    try:
+        from botocore.exceptions import ClientError, EventStreamError, NoCredentialsError
+    except ImportError:  # pragma: no cover
+        return type(e).__name__ in ("ClientError", "NoCredentialsError", "EventStreamError")
+    return isinstance(e, (ClientError, EventStreamError, NoCredentialsError))
+
+
+def _is_connection_error(e: BaseException) -> bool:
+    try:
+        from botocore.exceptions import ConnectionError as BotoConnectionError, ReadTimeoutError
+    except ImportError:  # pragma: no cover
+        return False
+    return isinstance(e, (BotoConnectionError, ReadTimeoutError))
+
+
+def _handle_client_error(e: Exception, model_id: str | None = None) -> None:
     code = getattr(e, "response", {}).get("Error", {}).get("Code", "") if hasattr(e, "response") else ""
+    if code == "AccessDeniedException" and model_id:
+        _mark_model_unavailable(model_id, f"{code}: {e}")
+        raise ModelUnavailable(str(e)) from e
     if code in ("UnrecognizedClientException", "AccessDeniedException", "InvalidSignatureException",
                 "ExpiredTokenException"):
         _mark_unavailable(f"{code}: {e}")
@@ -176,6 +224,9 @@ def _call(model_id: str, system_blocks: list[dict], messages: list[dict], tool_c
         req["system"] = system_blocks
     if tool_config:
         req["toolConfig"] = tool_config
+    denied = model_unavailable_reason(model_id)
+    if denied:
+        raise ModelUnavailable(denied)
     client = bedrock()
     try:
         if on_text is None:
@@ -186,11 +237,15 @@ def _call(model_id: str, system_blocks: list[dict], messages: list[dict], tool_c
     except LLMUnavailable:
         raise
     except Exception as e:  # noqa: BLE001
-        if type(e).__name__ in ("ClientError", "NoCredentialsError", "EventStreamError"):
+        if _is_connection_error(e):
+            # Network trouble after botocore's own retries (DNS, connect/read timeouts): a normal LLM error,
+            # so callers that can degrade (pricing, embeddings) do, instead of the run crashing.
+            raise LLMError(f"Bedrock unreachable: {e}") from e
+        if _is_aws_error(e):
             if type(e).__name__ == "NoCredentialsError":
                 _mark_unavailable(str(e))
                 raise LLMUnavailable(str(e)) from e
-            _handle_client_error(e)
+            _handle_client_error(e, model_id)
         raise
 
     # Streaming: rebuild the content blocks as Converse would have returned them.

@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="height:100%;width:100%;min-width:0;display:flex;flex-direction:column;background:var(--panel);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:13px;line-height:1.45;position:relative;overflow:hidden;">
+
+  <sc-if value="{{ isSheet }}" hint-placeholder-val="{{ false }}">
+    <div style="height:52px;flex:none;display:flex;align-items:center;gap:8px;padding:0 8px;border-bottom:1px solid var(--line);">
+      <button onClick="{{ close }}" style="height:36px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:var(--accInk);font:inherit;font-weight:500;cursor:pointer;">‹ Back to chat</button>
+      <div style="flex:1;"></div>
+      <a href="#" style="height:36px;display:inline-flex;align-items:center;padding:0 10px;border-radius:8px;text-decoration:none;color:var(--ink2);">Download</a>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ notSheet }}" hint-placeholder-val="{{ true }}">
+    <div style="height:44px;flex:none;display:flex;align-items:flex-end;gap:2px;padding:0 8px 0 10px;border-bottom:1px solid var(--line);background:var(--side);">
+      <div style="flex:1;min-width:0;display:flex;align-items:flex-end;gap:2px;overflow:hidden;">
+        <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="1">
+          <div onClick="{{ t.select }}" style="display:flex;align-items:center;gap:7px;height:36px;max-width:220px;padding:0 6px 0 12px;border-radius:8px 8px 0 0;background:{{ t.bg }};border:1px solid {{ t.line }};border-bottom:0;margin-bottom:-1px;cursor:pointer;color:{{ t.fg }};">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;color:{{ t.kindFg }};">{{ t.kind }}</span>
+            <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px;">{{ t.name }}</span>
+            <button onClick="{{ t.close }}" title="Close tab" style="width:22px;height:22px;flex:none;border:0;border-radius:5px;background:transparent;color:var(--ink3);font-size:14px;line-height:1;cursor:pointer;" style-hover="background:var(--sunk);color:var(--ink);">×</button>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;height:43px;">
+        <button onClick="{{ toggleFull }}" style="height:30px;padding:0 10px;border:0;border-radius:6px;background:transparent;color:var(--ink2);font:inherit;font-size:12.5px;cursor:pointer;" style-hover="background:var(--sunk);">{{ fullLabel }}</button>
+        <button onClick="{{ close }}" title="Close document" style="width:30px;height:30px;border:0;border-radius:6px;background:transparent;color:var(--ink2);font-size:18px;line-height:1;cursor:pointer;" style-hover="background:var(--sunk);">×</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <div style="flex:none;display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap;">
+    <div style="width:34px;height:40px;flex:none;border-radius:6px;background:{{ doc.kindBg }};color:{{ doc.kindFg }};display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;">{{ doc.kind }}</div>
+    <div style="flex:1;min-width:160px;display:flex;flex-direction:column;gap:2px;">
+      <div style="display:flex;align-items:center;gap:8px;min-width:0;"><span style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ doc.name }}</span><span style="flex:none;display:inline-flex;align-items:center;height:17px;padding:0 5px;border:1px solid var(--line);border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:var(--ink2);">{{ doc.lang }}</span></div>
+      <span style="font-size:12px;color:var(--ink3);">{{ doc.source }}</span>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button onClick="{{ ask }}" style="height:32px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;" style-hover="background:var(--sunk);">Ask about this document</button>
+      <sc-if value="{{ notSheet }}" hint-placeholder-val="{{ true }}"><a href="#" style="height:32px;display:inline-flex;align-items:center;padding:0 12px;border-radius:8px;background:var(--acc);color:#fff;text-decoration:none;font-size:12.5px;font-weight:600;">Download</a></sc-if>
+    </div>
+  </div>
+
+  <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:1;display:flex;flex-direction:column;gap:10px;padding:24px;">
+      <div style="font-size:12.5px;color:var(--ink3);">Opening document…</div>
+      <div style="height:12px;border-radius:4px;background:var(--sunk);width:80%;"></div>
+      <div style="height:12px;border-radius:4px;background:var(--sunk);width:64%;"></div>
+      <div style="height:12px;border-radius:4px;background:var(--sunk);width:72%;"></div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isXlsx }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line2);flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:6px;height:30px;padding:0 4px 0 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);min-width:200px;flex:1;max-width:320px;">
+        <span style="color:var(--ink3);font-size:12px;">Find</span>
+        <input value="{{ find }}" onChange="{{ onFind }}" onKeyDown="{{ onFindKey }}" placeholder="Item, e.g. stikkontakt" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:inherit;font-size:12.5px;"></input>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink3);white-space:nowrap;">{{ findCount }}</span>
+        <button onClick="{{ findPrev }}" style="width:22px;height:22px;border:0;border-radius:4px;background:transparent;color:var(--ink2);cursor:pointer;" style-hover="background:var(--sunk);">↑</button>
+        <button onClick="{{ findNext }}" style="width:22px;height:22px;border:0;border-radius:4px;background:transparent;color:var(--ink2);cursor:pointer;" style-hover="background:var(--sunk);">↓</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;height:30px;padding:0 8px 0 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);">
+        <span style="color:var(--ink3);font-size:12px;white-space:nowrap;">Go to row</span>
+        <input value="{{ gotoVal }}" onChange="{{ onGoto }}" onKeyDown="{{ onGotoKey }}" placeholder="58" style="width:48px;border:0;outline:0;background:transparent;color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:12px;"></input>
+      </div>
+      <div style="display:flex;align-items:center;height:30px;border:1px solid var(--line);border-radius:7px;overflow:hidden;">
+        <button onClick="{{ zoomOut }}" style="width:28px;height:28px;border:0;background:transparent;color:var(--ink2);font-size:15px;cursor:pointer;" style-hover="background:var(--sunk);">−</button>
+        <span style="min-width:44px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink2);">{{ zoomLabel }}</span>
+        <button onClick="{{ zoomIn }}" style="width:28px;height:28px;border:0;background:transparent;color:var(--ink2);font-size:15px;cursor:pointer;" style-hover="background:var(--sunk);">+</button>
+      </div>
+    </div>
+    <sc-if value="{{ isEst }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:none;display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line2);flex-wrap:wrap;">
+        <span style="font-size:12px;color:var(--ink3);margin-right:2px;white-space:nowrap;">Show only</span>
+        <sc-for list="{{ filters }}" as="f" hint-placeholder-count="3">
+          <button onClick="{{ f.toggle }}" style="flex:none;display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:14px;border:1px solid {{ f.line }};background:{{ f.bg }};color:{{ f.fg }};font:inherit;font-size:12px;font-weight:500;cursor:pointer;"><span style="width:3px;height:12px;border-radius:2px;background:{{ f.mark }};"></span>{{ f.label }}<span style="font-family:'IBM Plex Mono',monospace;font-size:11px;opacity:0.8;">{{ f.count }}</span></button>
+        </sc-for>
+        <span style="margin-left:auto;font-size:11.5px;color:var(--ink3);white-space:nowrap;font-family:'IBM Plex Mono',monospace;">{{ rowInfo }}</span>
+      </div>
+    </sc-if>
+
+    <div ref="{{ scRef }}" onScroll="{{ onScroll }}" style="flex:1;min-height:0;overflow:auto;position:relative;background:var(--panel);font-size:{{ fs }}px;">
+      <div style="min-width:{{ gridW }}px;position:relative;">
+        <div style="position:sticky;top:0;z-index:3;display:grid;grid-template-columns:{{ cols }};height:{{ rh }}px;background:var(--sunk);border-bottom:1px solid var(--line);font-weight:600;color:var(--ink2);font-size:0.92em;">
+          <div style="position:sticky;left:0;z-index:2;background:var(--sunk);display:flex;align-items:center;padding:0 8px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;font-weight:400;">{{ h.c0 }}</div>
+          <div style="position:sticky;left:{{ l1 }}px;z-index:2;background:var(--sunk);display:flex;align-items:center;padding:0 8px;">{{ h.c1 }}</div>
+          <div style="position:sticky;left:{{ l2 }}px;z-index:2;background:var(--sunk);display:flex;align-items:center;padding:0 8px;box-shadow:1px 0 0 var(--line);">{{ h.c2 }}</div>
+          <div style="display:flex;align-items:center;padding:0 8px;">{{ h.c3 }}</div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;">{{ h.c4 }}</div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;">{{ h.c5 }}</div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;">{{ h.c6 }}</div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;">{{ h.c7 }}</div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;">{{ h.c8 }}</div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;">{{ h.c9 }}</div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;">{{ h.c10 }}</div>
+          <div style="display:flex;align-items:center;padding:0 8px 0 14px;">{{ h.c11 }}</div>
+        </div>
+        <div style="height:{{ padTop }}px;"></div>
+        <sc-for list="{{ vis }}" as="r" hint-placeholder-count="14">
+          <div onClick="{{ r.click }}" style="display:grid;grid-template-columns:{{ cols }};height:{{ rh }}px;background:{{ r.bg }};border-bottom:1px solid var(--line2);box-shadow:{{ r.outline }};font-weight:{{ r.fw }};font-variant-numeric:tabular-nums;cursor:pointer;white-space:nowrap;">
+            <div style="position:sticky;left:0;z-index:1;background:{{ r.bg }};display:flex;align-items:center;padding:0 8px 0 5px;border-left:3px solid {{ r.mark }};color:var(--ink3);font-family:'IBM Plex Mono',monospace;font-size:0.88em;font-weight:400;">{{ r.n }}</div>
+            <div style="position:sticky;left:{{ l1 }}px;z-index:1;background:{{ r.bg }};display:flex;align-items:center;padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:0.92em;">{{ r.nr }}</div>
+            <div style="position:sticky;left:{{ l2 }}px;z-index:1;background:{{ r.bg }};display:flex;align-items:center;gap:6px;padding:0 8px;min-width:0;box-shadow:1px 0 0 var(--line);"><span style="overflow:hidden;text-overflow:ellipsis;">{{ r.d }}</span><sc-if value="{{ r.tag }}" hint-placeholder-val="{{ false }}"><span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;padding:1px 4px;border-radius:3px;color:{{ r.tagFg }};background:{{ r.tagBg }};">{{ r.tag }}</span></sc-if></div>
+            <div style="display:flex;align-items:center;padding:0 8px;color:var(--ink2);">{{ r.u }}</div>
+            <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:0.94em;">{{ r.q }}</div>
+            <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:0.94em;color:var(--ink2);">{{ r.norm }}</div>
+            <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:0.94em;color:var(--ink2);">{{ r.hrs }}</div>
+            <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:0.94em;">{{ r.lab }}</div>
+            <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:0.94em;color:var(--ink2);">{{ r.um }}</div>
+            <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:0.94em;">{{ r.mat }}</div>
+            <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:0.94em;font-weight:{{ r.totW }};">{{ r.tot }}</div>
+            <div style="display:flex;align-items:center;padding:0 8px 0 14px;color:{{ r.srcFg }};font-size:0.9em;overflow:hidden;text-overflow:ellipsis;">{{ r.src }}</div>
+          </div>
+        </sc-for>
+        <div style="height:{{ padBot }}px;"></div>
+        <div style="position:sticky;bottom:0;z-index:3;display:grid;grid-template-columns:{{ cols }};height:{{ rh }}px;background:var(--sunk);border-top:1px solid var(--line);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;">
+          <div style="position:sticky;left:0;z-index:2;background:var(--sunk);"></div>
+          <div style="position:sticky;left:{{ l1 }}px;z-index:2;background:var(--sunk);"></div>
+          <div style="position:sticky;left:{{ l2 }}px;z-index:2;background:var(--sunk);display:flex;align-items:center;padding:0 8px;box-shadow:1px 0 0 var(--line);overflow:hidden;"><span style="overflow:hidden;text-overflow:ellipsis;">{{ bar.label }}</span></div>
+          <div></div><div></div><div></div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:0.94em;color:var(--ink2);">{{ bar.hrs }}</div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:0.94em;">{{ bar.lab }}</div>
+          <div></div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:0.94em;">{{ bar.mat }}</div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:0.94em;">{{ bar.tot }}</div>
+          <div></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:none;display:flex;align-items:stretch;gap:0;border-top:1px solid var(--line);background:var(--side);min-height:38px;">
+      <div style="display:flex;align-items:stretch;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;">
+        <sc-for list="{{ sheetTabs }}" as="s" hint-placeholder-count="4">
+          <button onClick="{{ s.select }}" style="flex:none;display:flex;align-items:center;gap:6px;padding:0 14px;border:0;border-right:1px solid var(--line);border-top:2px solid {{ s.top }};background:{{ s.bg }};color:{{ s.fg }};font:inherit;font-size:12.5px;font-weight:{{ s.fw }};cursor:pointer;">{{ s.name }}<span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink3);">{{ s.count }}</span></button>
+        </sc-for>
+      </div>
+      <sc-if value="{{ totalLabel }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:none;display:flex;align-items:center;gap:6px;padding:0 14px;font-size:12px;color:var(--ink2);white-space:nowrap;">{{ totalLabel }}<b style="font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--ink);">{{ totalVal }}</b></div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isPdf }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line2);flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:4px;">
+        <button onClick="{{ pdfPrev }}" style="height:30px;padding:0 10px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink2);font:inherit;font-size:12px;cursor:pointer;">‹ Prev</button>
+        <span style="min-width:92px;text-align:center;font-size:12px;color:var(--ink2);">{{ pdfPageLabel }}</span>
+        <button onClick="{{ pdfNext }}" style="height:30px;padding:0 10px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink2);font:inherit;font-size:12px;cursor:pointer;">Next ›</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);flex:1;min-width:160px;max-width:300px;">
+        <span style="color:var(--ink3);font-size:12px;">Search</span>
+        <input value="{{ pdfFind }}" onChange="{{ onPdfFind }}" placeholder="Text in document" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:inherit;font-size:12.5px;"></input>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink3);white-space:nowrap;">{{ pdfFindCount }}</span>
+      </div>
+      <div style="display:flex;align-items:center;height:30px;border:1px solid var(--line);border-radius:7px;overflow:hidden;">
+        <button onClick="{{ zoomOut }}" style="width:28px;height:28px;border:0;background:transparent;color:var(--ink2);font-size:15px;cursor:pointer;">−</button>
+        <span style="min-width:44px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink2);">{{ zoomLabel }}</span>
+        <button onClick="{{ zoomIn }}" style="width:28px;height:28px;border:0;background:transparent;color:var(--ink2);font-size:15px;cursor:pointer;">+</button>
+      </div>
+    </div>
+    <div style="flex:1;min-height:0;display:flex;">
+      <sc-if value="{{ notSheet }}" hint-placeholder-val="{{ true }}">
+        <div style="width:104px;flex:none;overflow:auto;border-right:1px solid var(--line);background:var(--side);display:flex;flex-direction:column;align-items:center;gap:12px;padding:14px 0;">
+          <sc-for list="{{ thumbs }}" as="p" hint-placeholder-count="6">
+            <button onClick="{{ p.select }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:transparent;cursor:pointer;padding:0;">
+              <div style="width:60px;height:78px;background:#fff;border-radius:2px;box-shadow:0 0 0 {{ p.ring }} var(--acc),0 1px 3px rgba(0,0,0,0.15);display:flex;flex-direction:column;gap:4px;padding:8px 7px;">
+                <div style="height:4px;width:60%;background:#c9ccd2;"></div><div style="height:2px;background:#e1e3e7;"></div><div style="height:2px;background:#e1e3e7;"></div><div style="height:2px;background:#e1e3e7;"></div><div style="height:2px;width:80%;background:#e1e3e7;"></div><div style="height:2px;background:#e1e3e7;"></div>
+              </div>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:{{ p.fg }};">{{ p.n }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+      <div style="flex:1;min-width:0;overflow:auto;background:var(--sunk);padding:24px 16px;">
+        <div style="width:{{ pageW }}px;margin:0 auto;background:#fff;color:#1b1d21;box-shadow:0 1px 3px rgba(0,0,0,0.12),0 8px 24px rgba(0,0,0,0.08);padding:{{ pagePad }}px;font-size:{{ pageFs }}px;display:flex;flex-direction:column;gap:1em;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1b1d21;padding-bottom:0.6em;"><div style="display:flex;flex-direction:column;"><b style="font-size:1.5em;letter-spacing:-0.01em;">Solar Danmark A/S</b><span style="color:#5b616b;">Prisliste 2025 · Installationsmateriel</span></div><span style="color:#5b616b;font-family:'IBM Plex Mono',monospace;font-size:0.85em;">Gyldig fra 01.01.2025</span></div>
+          <div style="display:grid;grid-template-columns:5.5em 1fr 3.5em 6em;font-weight:600;font-size:0.9em;border-bottom:1px solid #c9ccd2;padding-bottom:0.35em;"><span>Varenr.</span><span>Beskrivelse</span><span>Enhed</span><span style="text-align:right;">Pris kr</span></div>
+          <sc-for list="{{ pdfRows }}" as="x" hint-placeholder-count="18">
+            <div style="display:grid;grid-template-columns:5.5em 1fr 3.5em 6em;font-size:0.92em;background:{{ x.bg }};margin:-0.45em 0;padding:0.2em 0;"><span style="font-family:'IBM Plex Mono',monospace;color:#5b616b;">{{ x.no }}</span><span>{{ x.d }}</span><span>{{ x.u }}</span><span style="text-align:right;font-family:'IBM Plex Mono',monospace;">{{ x.p }}</span></div>
+          </sc-for>
+          <div style="margin-top:1em;border-top:1px solid #e1e3e7;padding-top:0.6em;display:flex;justify-content:space-between;color:#8a9099;font-size:0.8em;"><span>Alle priser er ekskl. moms. Der tages forbehold for trykfejl.</span><span>{{ pdfPageLabel }}</span></div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isDocx }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line2);">
+      <div style="display:flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);flex:1;max-width:320px;">
+        <span style="color:var(--ink3);font-size:12px;">Search</span>
+        <input value="{{ docFind }}" onChange="{{ onDocFind }}" placeholder="e.g. cable tray" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:inherit;font-size:12.5px;"></input>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink3);white-space:nowrap;">{{ docFindCount }}</span>
+      </div>
+    </div>
+    <div style="flex:1;min-height:0;overflow:auto;background:var(--sunk);padding:24px 16px;">
+      <div style="max-width:680px;margin:0 auto;background:#fff;color:#1b1d21;box-shadow:0 1px 3px rgba(0,0,0,0.12),0 8px 24px rgba(0,0,0,0.08);padding:48px 56px;display:flex;flex-direction:column;gap:6px;font-size:13.5px;line-height:1.55;">
+        <sc-for list="{{ docBlocks }}" as="b" hint-placeholder-count="12">
+          <sc-if value="{{ b.h1 }}" hint-placeholder-val="{{ false }}"><div style="font-size:24px;font-weight:600;letter-spacing:-0.01em;margin-bottom:4px;background:{{ b.bg }};">{{ b.text }}</div></sc-if>
+          <sc-if value="{{ b.h2 }}" hint-placeholder-val="{{ false }}"><div style="font-size:16px;font-weight:600;margin-top:18px;background:{{ b.bg }};">{{ b.text }}</div></sc-if>
+          <sc-if value="{{ b.p }}" hint-placeholder-val="{{ true }}"><div style="color:#3a3f47;background:{{ b.bg }};">{{ b.text }}</div></sc-if>
+          <sc-if value="{{ b.tr }}" hint-placeholder-val="{{ false }}"><div style="display:grid;grid-template-columns:1fr 70px 80px;border-bottom:1px solid #e6e8ec;padding:5px 0;font-weight:{{ b.fw }};background:{{ b.bg }};"><span>{{ b.c0 }}</span><span>{{ b.c1 }}</span><span style="text-align:right;font-family:'IBM Plex Mono',monospace;">{{ b.c2 }}</span></div></sc-if>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isBroken }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:32px;background:var(--sunk);">
+      <div style="max-width:380px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;">
+        <div style="width:40px;height:40px;border-radius:50%;background:var(--errSoft);color:var(--err);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;">!</div>
+        <div style="font-size:15px;font-weight:600;">This document can't be displayed</div>
+        <div style="color:var(--ink2);">The PDF is password-protected, so the viewer can't read its pages. The agent also couldn't analyse it.</div>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <button style="height:34px;padding:0 14px;border:0;border-radius:8px;background:var(--acc);color:#fff;font:inherit;font-weight:600;cursor:pointer;">Try again</button>
+          <button style="height:34px;padding:0 14px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit;cursor:pointer;">Download original</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ ins.open }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;z-index:10;right:{{ ins.right }};left:{{ ins.left }};top:{{ ins.top }};bottom:{{ ins.bottom }};width:{{ ins.width }};overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 40px rgba(16,24,40,0.18);display:flex;flex-direction:column;">
+      <div style="padding:14px 16px 12px;display:flex;flex-direction:column;gap:4px;border-bottom:1px solid var(--line2);">
+        <div style="display:flex;align-items:center;gap:8px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink3);">{{ ins.loc }}</span><button onClick="{{ closeIns }}" style="margin-left:auto;width:26px;height:26px;border:0;border-radius:6px;background:transparent;color:var(--ink3);font-size:16px;cursor:pointer;" style-hover="background:var(--sunk);">×</button></div>
+        <div style="font-weight:600;font-size:14px;">{{ ins.title }}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+          <span style="display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:5px;font-size:11.5px;font-weight:500;color:{{ ins.confFg }};background:{{ ins.confBg }};"><span style="width:6px;height:6px;border-radius:50%;background:currentColor;"></span>{{ ins.confLabel }}</span>
+        </div>
+        <sc-if value="{{ ins.reason }}" hint-placeholder-val="{{ false }}"><div style="font-size:12.5px;color:var(--ink2);margin-top:2px;">{{ ins.reason }}</div></sc-if>
+      </div>
+      <div style="padding:12px 16px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--line2);font-size:12.5px;">
+        <div style="display:flex;flex-direction:column;gap:4px;"><span style="font-size:11.5px;color:var(--ink3);">Matched reference row</span>
+          <button onClick="{{ openRef }}" style="text-align:left;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;cursor:pointer;display:flex;flex-direction:column;gap:2px;" style-hover="border-color:var(--acc);"><span style="font-size:11.5px;color:var(--accInk);">{{ ins.ref }} ›</span><span>{{ ins.refDesc }}</span></button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:11.5px;color:var(--ink3);">Norm used</span><span>{{ ins.normText }} · <button onClick="{{ openNorms }}" style="border:0;padding:0;background:transparent;color:var(--accInk);font:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:2px;">norms.docx</button></span></div>
+        <div style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:11.5px;color:var(--ink3);">Price source</span>
+          <sc-if value="{{ ins.isWeb }}" hint-placeholder-val="{{ false }}"><span><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;color:var(--web);background:var(--webSoft);padding:1px 4px;border-radius:3px;">WEB</span> <a href="{{ ins.webUrl }}" target="_blank">{{ ins.psrc }}</a>, checked today</span></sc-if>
+          <sc-if value="{{ ins.notWeb }}" hint-placeholder-val="{{ true }}"><span>{{ ins.psrc }}</span></sc-if>
+        </div>
+      </div>
+      <div style="padding:12px 16px 16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--ink3);">Quantity<input value="{{ ins.q }}" onChange="{{ onInsQ }}" style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:12.5px;outline-color:var(--acc);min-width:0;"></input></label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--ink3);">Norm, h<input value="{{ ins.norm }}" onChange="{{ onInsNorm }}" style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:12.5px;outline-color:var(--acc);min-width:0;"></input></label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--ink3);">Unit price<input value="{{ ins.um }}" onChange="{{ onInsUm }}" style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:12.5px;outline-color:var(--acc);min-width:0;"></input></label>
+        <div style="grid-column:1 / -1;display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink2);"><span>Row total</span><b style="font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--ink);">{{ ins.total }}</b></div>
+        <div style="grid-column:1 / -1;display:flex;gap:8px;">
+          <button onClick="{{ saveIns }}" style="flex:1;height:34px;border:0;border-radius:8px;background:var(--acc);color:#fff;font:inherit;font-weight:600;cursor:pointer;">Save change</button>
+          <button onClick="{{ closeIns }}" style="height:34px;padding:0 14px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit;cursor:pointer;">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:900,&quot;height&quot;:760},&quot;docs&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;string[]&quot;},&quot;active&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;estimate&quot;,&quot;blank&quot;,&quot;datacenter&quot;,&quot;braila&quot;,&quot;norms&quot;,&quot;solar&quot;,&quot;broken&quot;],&quot;default&quot;:&quot;estimate&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;mode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;split&quot;,&quot;full&quot;,&quot;sheet&quot;],&quot;default&quot;:&quot;split&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;jump&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;},&quot;selectRow&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;number&quot;},&quot;onClose&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;() =&gt; void&quot;},&quot;onMode&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(m) =&gt; void&quot;},&quot;onAsk&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(doc) =&gt; void&quot;}}">
+const DOCS = {
+  estimate: { name: 'Estimate_Denmark_Hal_B.xlsx', kind: 'xlsx', lang: 'DA', source: 'Generated by the agent · today 10:45', est: true },
+  blank: { name: 'Tilbud_Hal_B.xlsx', kind: 'xlsx', lang: 'DA', source: 'Uploaded blank · today 10:42' },
+  datacenter: { name: 'data-center.xlsx', kind: 'xlsx', lang: 'DA', source: 'Knowledge base · Priced estimate (reference)' },
+  braila: { name: 'Braila 23.xlsx', kind: 'xlsx', lang: 'LV', source: 'Knowledge base · Priced estimate (reference)' },
+  teikums: { name: 'Tāme_Teikums.xlsx', data: 'braila', kind: 'xlsx', lang: 'LV', source: 'Generated by the agent · today 09:31' },
+  braila24: { name: 'Tāme_Braila_24.xlsx', data: 'braila', kind: 'xlsx', lang: 'LV', source: 'Generated by the agent from Braila 23.xlsx' },
+  kekava: { name: 'Tāme_Kekava.xlsx', data: 'braila', kind: 'xlsx', lang: 'LV', source: 'Generated by the agent · 24 Sep' },
+  skolegade: { name: 'Estimate_Skolegade_14.xlsx', data: 'datacenter', kind: 'xlsx', lang: 'DA', source: 'Generated by the agent · 25 Sep' },
+  norms: { name: 'norms.docx', kind: 'docx', lang: 'EN', source: 'Knowledge base · Hourly norms' },
+  solar: { name: 'Solar prisliste 2025.pdf', kind: 'pdf', lang: 'DA', source: 'Knowledge base · Price list' },
+  broken: { name: 'Tilbud_scan_2019.pdf', kind: 'broken', lang: 'LV', source: 'Knowledge base · Other' },
+};
+const KIND = { xlsx: ['XLSX', 'var(--ok)', 'var(--okSoft)'], pdf: ['PDF', 'var(--err)', 'var(--errSoft)'], docx: ['DOCX', 'var(--accInk)', 'var(--accSoft)'], broken: ['PDF', 'var(--err)', 'var(--errSoft)'] };
+const HEAD = {
+  DA: ['#', 'Nr.', 'Beskrivelse', 'Enh.', 'Antal', 'Norm t', 'Timer', 'Arbejde kr', 'Mat./enh. kr', 'Materiale kr', 'I alt kr', 'Kilde'],
+  LV: ['#', 'Nr.', 'Nosaukums', 'Mērv.', 'Daudz.', 'Norma h', 'Stundas', 'Darbs EUR', 'Mat./vien. EUR', 'Materiāli EUR', 'Kopā EUR', 'Avots'],
+};
+const NORMS = [
+  ['h1', 'Hourly norms 2025'],
+  ['p', 'Installation labour for electrical works. Norms are hours per unit for one electrician and include fixing, connection and testing. Hourly rate DKK 430, excl. travel.'],
+  ['h2', '1  Cables and cable routing'], ['th', 'Task', 'Unit', 'Hours'],
+  ['tr', 'Cable NOIKLX 3G1.5 in tray', 'm', '0.06'], ['tr', 'Cable NOIKLX 3G2.5 in tray', 'm', '0.07'], ['tr', 'Cable NOIKLX 5G2.5 in tray', 'm', '0.09'], ['tr', 'Cable PFXP 5G10', 'm', '0.14'],
+  ['tr', 'Cable tray 300 mm, incl. brackets', 'm', '0.30'], ['tr', 'Cable ladder 500 mm, incl. brackets', 'm', '0.42'], ['tr', 'Conduit 20 mm', 'm', '0.05'],
+  ['h2', '2  Wiring devices'], ['th', 'Task', 'Unit', 'Hours'],
+  ['tr', 'Socket outlet 2-gang with earth, IP44', 'pcs', '0.45'], ['tr', 'Socket outlet 1-gang with earth', 'pcs', '0.35'], ['tr', 'Switch 1-pole, flush', 'pcs', '0.35'], ['tr', 'Two-way switch', 'pcs', '0.40'], ['tr', 'Junction box IP65', 'pcs', '0.20'], ['tr', 'CEE outlet 16A 5-pole', 'pcs', '0.60'], ['tr', 'Floor box 3×2 sockets', 'pcs', '1.20'],
+  ['h2', '3  Distribution boards'], ['th', 'Task', 'Unit', 'Hours'],
+  ['tr', 'Distribution board 12 modules', 'pcs', '3.00'], ['tr', 'Distribution board 24 modules', 'pcs', '4.50'], ['tr', 'Distribution board 36 modules', 'pcs', '6.00'], ['tr', 'RCD 4P 40A 30mA', 'pcs', '0.50'], ['tr', 'MCB 1P', 'pcs', '0.15'], ['tr', 'MCB 3P', 'pcs', '0.25'],
+  ['h2', '4  Adjustments'],
+  ['p', 'Work above 3.5 m: add 20% to all norms. Renovation in occupied buildings: add 15%. Cable tray norms include one bend per 10 m.'],
+];
+const ZOOMS = [0.8, 0.9, 1, 1.15, 1.3];
+class Component extends DCLogic {
+  state = { tabs: null, active: null, sheet: {}, st: 0, vh: 600, zi: 2, find: '', fi: 0, gotoVal: '', filter: null, sel: null, hl: null, edits: {}, draft: null, page: 1, pdfFind: '', docFind: '' };
+  componentDidMount() {
+    import('./estimate-data.js').then(m => { this.mod = m; this.forceUpdate(); if (this.props.jump) this.applyJump(this.props.jump); if (this.props.selectRow) this.setState({ sel: this.props.selectRow, draft: null }); });
+  }
+  componentDidUpdate(pp) {
+    const j = this.props.jump; if (j && (!pp.jump || pp.jump.key !== j.key) && this.mod) this.applyJump(j);
+    const d = this.props.docs; if (d && pp.docs !== d && this.state.tabs) { const tabs = [...this.state.tabs]; d.forEach(x => { if (!tabs.includes(x)) tabs.push(x); }); this.setState({ tabs, active: this.props.active || tabs[tabs.length - 1] }); }
+  }
+  componentWillUnmount() { this._ro && this._ro.disconnect(); }
+  tabs() { return this.state.tabs || this.props.docs || ['estimate']; }
+  activeId() { const t = this.tabs(); return this.state.active && t.includes(this.state.active) ? this.state.active : (this.props.active && t.includes(this.props.active) ? this.props.active : t[0]); }
+  openTab(id) { const tabs = [...this.tabs()]; if (!tabs.includes(id)) tabs.push(id); this.setState({ tabs, active: id, sel: null, filter: null, find: '' }); }
+  rh() { return Math.round(30 * ZOOMS[this.state.zi]); }
+  applyJump(j) {
+    const tabs = [...this.tabs()]; if (!tabs.includes(j.doc)) tabs.push(j.doc);
+    const doc = DOCS[j.doc] && DOCS[j.doc].kind === 'xlsx' ? this.mod.getDoc(DOCS[j.doc].data || j.doc) : null; if (!doc) { this.setState({ tabs, active: j.doc }); return; }
+    const si = Math.max(0, doc.sheets.findIndex(s => s.name === j.sheet));
+    const idx = doc.sheets[si].rows.findIndex(r => r.n === j.row);
+    this.setState({ tabs, active: j.doc, sheet: { ...this.state.sheet, [j.doc]: si }, filter: null, find: '', hl: j.row, sel: DOCS[j.doc].est && j.inspect !== false ? j.row : null, draft: null }, () => this.scrollTo(idx));
+  }
+  scrollTo(idx) { let i = 0; const target = () => Math.max(0, idx * this.rh() - (this._sc ? this._sc.clientHeight : 600) / 3); clearInterval(this._sti); this._sti = setInterval(() => { const el = this._sc; i++; if (el && el.clientHeight > 0 && el.scrollHeight > el.clientHeight) { el.scrollTop = target(); this.setState({ st: el.scrollTop, vh: el.clientHeight }); if (Math.abs(el.scrollTop - target()) < 2 || i > 3) clearInterval(this._sti); } if (i > 30) clearInterval(this._sti); }, 60); }
+  fmt(n, dec, lang) { if (n === '' || n == null || isNaN(n)) return ''; return Number(n).toLocaleString(lang === 'LV' ? 'lv-LV' : 'da-DK', { minimumFractionDigits: dec, maximumFractionDigits: dec }); }
+  row(r, key) { const e = this.state.edits[key]; if (!e) return r; const q = +e.q, norm = +e.norm, um = +e.um, rate = this.mod.RATE[this.cur.lang]; const hrs = q * norm, lab = hrs * rate, mat = q * um; return { ...r, q, norm, um, hrs, lab, mat, tot: lab + mat, flag: 'man', reason: 'Changed by you just now.', conf: 1 }; }
+  renderVals() {
+    const tabsIds = this.tabs(), id = this.activeId(), meta = DOCS[id] || DOCS.estimate, k = KIND[meta.kind];
+    const mode = this.props.mode || 'split', isSheet = mode === 'sheet', z = ZOOMS[this.state.zi], rh = this.rh();
+    const base = {
+      isSheet, notSheet: !isSheet, fullLabel: mode === 'full' ? 'Exit full screen' : 'Full screen',
+      toggleFull: () => this.props.onMode && this.props.onMode(mode === 'full' ? 'split' : 'full'),
+      close: () => this.props.onClose && this.props.onClose(),
+      ask: () => this.props.onAsk && this.props.onAsk({ id, name: meta.name, kind: meta.kind }),
+      doc: { name: meta.name, lang: meta.lang, source: meta.source, kind: k[0], kindFg: k[1], kindBg: k[2] },
+      tabs: tabsIds.map(t => { const m = DOCS[t], on = t === id; return { name: m.name, kind: KIND[m.kind][0], kindFg: KIND[m.kind][1], bg: on ? 'var(--panel)' : 'transparent', line: on ? 'var(--line)' : 'transparent', fg: on ? 'var(--ink)' : 'var(--ink2)',
+        select: () => this.setState({ active: t, sel: null, filter: null, find: '' }),
+        close: e => { e.stopPropagation(); const nt = tabsIds.filter(x => x !== t); if (!nt.length) { this.props.onClose && this.props.onClose(); return; } this.setState({ tabs: nt, active: t === id ? nt[0] : id, sel: null }); } }; }),
+      zoomLabel: Math.round(z * 100) + '%', zoomIn: () => this.setState(s => ({ zi: Math.min(ZOOMS.length - 1, s.zi + 1) })), zoomOut: () => this.setState(s => ({ zi: Math.max(0, s.zi - 1) })),
+      loading: false, isXlsx: false, isPdf: false, isDocx: false, isBroken: meta.kind === 'broken', isEst: false, ins: { open: false },
+      closeIns: () => this.setState({ sel: null, draft: null }),
+      scRef: this._scCb || (this._scCb = el => { if (el && el !== this._sc) { this._sc = el; this._ro && this._ro.disconnect(); this._ro = new ResizeObserver(() => this.setState({ vh: el.clientHeight })); this._ro.observe(el); } }),
+      onScroll: e => this.setState({ st: e.currentTarget.scrollTop }),
+    };
+    if (meta.kind === 'xlsx') {
+      if (!this.mod) return { ...base, loading: true };
+      return { ...base, ...this.xlsxVals(id, meta, isSheet, z, rh) };
+    }
+    if (meta.kind === 'pdf') return { ...base, ...this.pdfVals(z, isSheet) };
+    if (meta.kind === 'docx') return { ...base, ...this.docxVals() };
+    return base;
+  }
+  xlsxVals(id, meta, isSheet, z, rh) {
+    const doc = this.mod.getDoc(meta.data || id); this.cur = doc;
+    const si = Math.min(this.state.sheet[id] || 0, doc.sheets.length - 1), sh = doc.sheets[si], lang = doc.lang, dec = lang === 'LV' ? 2 : 0;
+    const est = !!meta.est, flt = est ? this.state.filter : null;
+    const keyOf = r => `${id}:${sh.name}:${r.n}`;
+    let rows = sh.rows;
+    if (flt) rows = rows.filter(r => { if (r.type !== 'item') return false; const f = this.state.edits[keyOf(r)] ? 'man' : r.flag; return flt === 'att' ? (f === 'att' || f === 'none') : f === flt; });
+    const q = this.state.find.trim().toLowerCase();
+    const matches = q ? rows.map((r, i) => r.type === 'item' && r.d.toLowerCase().includes(q) ? i : -1).filter(i => i >= 0) : [];
+    const fi = matches.length ? ((this.state.fi % matches.length) + matches.length) % matches.length : 0;
+    const matchSet = new Set(matches.map(i => rows[i].n)), curMatch = matches.length ? rows[matches[fi]].n : null;
+    const N = rows.length, st = this.state.st, vh = this.state.vh;
+    const start = Math.max(0, Math.floor(st / rh) - 8), end = Math.min(N, start + Math.ceil(vh / rh) + 18);
+    const W = [44, 60, isSheet ? 190 : 300, 52, 70, 64, 68, 104, 100, 110, 116, 210].map(w => Math.round(w * z));
+    const TAG = { web: ['WEB', 'var(--web)', 'var(--webSoft)'], att: ['CHECK', 'var(--warn)', 'var(--warnSoft)'], none: ['NO PRICE', 'var(--err)', 'var(--errSoft)'], man: ['EDITED', 'var(--accInk)', 'var(--accSoft)'] };
+    const MARK = { web: 'var(--web)', att: 'var(--warn)', none: 'var(--err)', man: 'var(--acc)' };
+    const vis = [];
+    for (let i = start; i < end; i++) {
+      const r0 = rows[i], key = keyOf(r0), r = r0.type === 'item' && est ? this.row(r0, key) : r0;
+      const f = est && r.type === 'item' ? r.flag : null, t = f && TAG[f];
+      const sel = this.state.sel === r.n, hl = this.state.hl === r.n || curMatch === r.n;
+      vis.push({
+        n: r.n, nr: r.nr, d: r.d, u: r.u || '', q: r.type === 'item' ? this.fmt(r.q, 0, lang) : '', norm: r.type === 'item' ? this.fmt(r.norm, 2, lang) : '',
+        hrs: doc.priced && r.type !== 'sec' ? this.fmt(r.hrs, 1, lang) : '', lab: doc.priced && r.type !== 'sec' ? this.fmt(r.lab, dec, lang) : '',
+        um: doc.priced && r.type === 'item' ? (r.um === 0 ? '—' : this.fmt(r.um, 2, lang)) : '', mat: doc.priced && r.type !== 'sec' ? (r.type === 'item' && r.um === 0 ? '—' : this.fmt(r.mat, dec, lang)) : '',
+        tot: doc.priced && r.type !== 'sec' ? this.fmt(r.tot, dec, lang) : '', totW: r.type === 'item' ? 500 : 600,
+        src: est && r.type === 'item' ? (f === 'web' ? r.psrc : f === 'none' ? 'Not found' : r.ref.replace('data-center.xlsx · ', 'data-center · ')) : '',
+        srcFg: f === 'web' ? 'var(--web)' : f === 'none' ? 'var(--err)' : 'var(--ink3)',
+        tag: t ? t[0] : '', tagFg: t ? t[1] : '', tagBg: t ? t[2] : '', mark: (f && MARK[f]) || 'transparent',
+        bg: sel ? 'var(--accSoft)' : hl ? 'var(--hl)' : matchSet.has(r.n) ? 'var(--hl2)' : r.type === 'sec' ? 'var(--side)' : 'var(--panel)',
+        outline: sel || hl ? 'inset 0 0 0 1.5px var(--acc)' : 'none', fw: r.type === 'item' ? 400 : 600,
+        click: () => { if (r.type !== 'item') return; this.setState({ hl: null, sel: est ? r.n : null, draft: null }); if (!est) this.setState({ hl: r.n }); },
+      });
+    }
+    let bar;
+    const sumOf = arr => arr.reduce((a, r) => ({ hrs: a.hrs + (r.hrs || 0), lab: a.lab + (r.lab || 0), mat: a.mat + (r.mat || 0) }), { hrs: 0, lab: 0, mat: 0 });
+    if (flt) { const s = sumOf(rows); bar = { label: `Filtered rows · ${rows.length}`, hrs: this.fmt(s.hrs, 1, lang), lab: this.fmt(s.lab, dec, lang), mat: this.fmt(s.mat, dec, lang), tot: this.fmt(s.lab + s.mat, dec, lang) }; }
+    else { const bi = Math.min(N - 1, Math.max(0, Math.floor((st + vh - rh * 2) / rh))); const sub = rows[bi] && rows[bi].subRef; bar = sub && doc.priced ? { label: sub.d, hrs: this.fmt(sub.hrs, 1, lang), lab: this.fmt(sub.lab, dec, lang), mat: this.fmt(sub.mat, dec, lang), tot: this.fmt(sub.tot, dec, lang) } : { label: sub ? sub.d : '', hrs: '', lab: '', mat: '', tot: '' }; }
+    const cnt = fl => sh.rows.filter(r => r.type === 'item' && (fl === 'att' ? (r.flag === 'att' || r.flag === 'none') : fl === 'man' ? (r.flag === 'man' || this.state.edits[keyOf(r)]) : r.flag === fl)).length;
+    const FL = [['att', 'Needs attention', 'var(--warn)'], ['web', 'Web-sourced', 'var(--web)'], ['man', 'Manually changed', 'var(--acc)']];
+    const cur = lang === 'LV' ? 'EUR' : 'DKK';
+    let ins = { open: false };
+    if (est && this.state.sel != null) {
+      const r0 = sh.rows.find(r => r.n === this.state.sel);
+      if (r0 && r0.type === 'item') {
+        const key = keyOf(r0), r = this.row(r0, key), d = this.state.draft || { q: String(r.q), norm: String(r.norm).replace('.', ','), um: String(r.um).replace('.', ',') };
+        const num = s => parseFloat(String(s).replace(/\s/g, '').replace(',', '.')) || 0;
+        const tot = num(d.q) * num(d.norm) * doc.rate + num(d.q) * num(d.um);
+        const c = r.conf, cl = c >= 0.85 ? ['High', 'var(--ok)', 'var(--okSoft)'] : c >= 0.6 ? ['Medium', 'var(--warn)', 'var(--warnSoft)'] : ['Low', 'var(--err)', 'var(--errSoft)'];
+        const refRow = parseInt((r.ref.match(/row (\d+)/) || [])[1] || '0', 10);
+        ins = { open: true, loc: `${sh.name} · row ${r.n}`, title: r.d, confLabel: r.flag === 'man' ? 'Set by you' : `${cl[0]} confidence · ${Math.round(c * 100)}%`, confFg: r.flag === 'man' ? 'var(--accInk)' : cl[1], confBg: r.flag === 'man' ? 'var(--accSoft)' : cl[2], reason: r.reason || '',
+          ref: r.ref, refDesc: r0.d.split(',')[0] + ` · ${this.fmt(r0.norm, 2, lang)} h · ${this.fmt(r0.um || 0, 2, lang)} kr`, normText: `${this.fmt(r.norm, 2, lang)} h per ${r.u}`,
+          psrc: r.flag === 'web' ? r.psrc : r.flag === 'none' ? 'No price found in references or on supplier sites' : r.ref, isWeb: r.flag === 'web', notWeb: r.flag !== 'web', webUrl: 'https://' + r.psrc,
+          q: d.q, norm: d.norm, um: d.um, total: `${cur} ${this.fmt(tot, dec, 'EN')}`,
+          right: isSheet ? '0' : '16px', left: isSheet ? '0' : 'auto', top: isSheet ? 'auto' : '150px', bottom: isSheet ? '0' : 'auto', width: isSheet ? 'auto' : '340px' };
+        Object.assign(ins, { _set: (f, v) => this.setState({ draft: { ...d, [f]: v } }), _save: () => this.setState({ edits: { ...this.state.edits, [key]: { q: num(d.q), norm: num(d.norm), um: num(d.um) } }, draft: null, sel: null, hl: r.n }), _ref: () => this.applyJump({ doc: 'datacenter', sheet: sh.name, row: refRow, key: Date.now(), inspect: false }) });
+      }
+    }
+    return {
+      isXlsx: true, isEst: est, h: Object.fromEntries(HEAD[lang].map((x, i) => ['c' + i, doc.priced || i < 5 ? x : ''])),
+      cols: W.map(w => w + 'px').join(' '), gridW: W.reduce((a, b) => a + b, 0), l1: W[0], l2: W[0] + W[1], rh, fs: Math.round(12.5 * z * 10) / 10,
+      vis, padTop: start * rh, padBot: Math.max(0, (N - end) * rh), bar,
+      find: this.state.find, findCount: q ? (matches.length ? `${fi + 1} of ${matches.length}` : 'No matches') : '',
+      onFind: e => this.setState({ find: e.target.value, fi: 0 }),
+      onFindKey: e => { if (e.key === 'Enter' && matches.length) { const nfi = (fi + (e.shiftKey ? -1 : 1) + matches.length) % matches.length; this.setState({ fi: nfi, hl: null }); this.scrollTo(matches[nfi]); } },
+      findNext: () => { if (!matches.length) return; const n2 = (fi + 1) % matches.length; this.setState({ fi: n2, hl: null }); this.scrollTo(matches[n2]); },
+      findPrev: () => { if (!matches.length) return; const n2 = (fi - 1 + matches.length) % matches.length; this.setState({ fi: n2, hl: null }); this.scrollTo(matches[n2]); },
+      gotoVal: this.state.gotoVal, onGoto: e => this.setState({ gotoVal: e.target.value.replace(/\D/g, '') }),
+      onGotoKey: e => { if (e.key !== 'Enter') return; const n = +this.state.gotoVal; const idx = sh.rows.findIndex(r => r.n === n); if (idx >= 0) { this.setState({ filter: null, find: '', hl: n }); this.scrollTo(idx); } },
+      filters: FL.map(([fk, label, mark]) => { const on = flt === fk; return { label, mark, count: cnt(fk), bg: on ? 'var(--accSoft)' : 'var(--panel)', line: on ? 'var(--acc)' : 'var(--line)', fg: on ? 'var(--accInk)' : 'var(--ink2)', toggle: () => { this.setState({ filter: on ? null : fk, st: 0, sel: null }); if (this._sc) this._sc.scrollTop = 0; } }; }),
+      rowInfo: `${this.fmt(doc.rows, 0, 'EN')} rows in ${doc.sheets.length} sheets`,
+      sheetTabs: doc.sheets.map((s, i) => ({ name: s.name, count: this.fmt(s.rows.length, 0, 'EN'), bg: i === si ? 'var(--panel)' : 'transparent', fg: i === si ? 'var(--ink)' : 'var(--ink2)', top: i === si ? 'var(--acc)' : 'transparent', fw: i === si ? 600 : 400, select: () => { this.setState({ sheet: { ...this.state.sheet, [id]: i }, st: 0, sel: null, hl: null, filter: null }); if (this._sc) this._sc.scrollTop = 0; } })),
+      totalLabel: doc.priced && !isSheet ? 'Estimate total' : '', totalVal: `${cur} ${this.fmt(doc.lab + doc.mat, 0, 'EN')}`,
+      ins, onInsQ: e => ins._set('q', e.target.value), onInsNorm: e => ins._set('norm', e.target.value), onInsUm: e => ins._set('um', e.target.value),
+      saveIns: () => ins._save && ins._save(), openRef: () => ins._ref && ins._ref(), openNorms: () => this.openTab('norms'),
+    };
+  }
+  pdfVals(z, isSheet) {
+    const C = this.mod ? this.mod.CATALOG : null, total = 14, p = this.state.page;
+    const all = C ? ['inst', 'kab', 'tav', 'jord', 'svag', 'brand', 'lys', 'nod', 'styr', 'hov', 'maal', 'adg'].flatMap(k => C[k]) : [];
+    const q = this.state.pdfFind.trim().toLowerCase();
+    const rows = [];
+    for (let i = 0; i < 20 && all.length; i++) { const it = all[((p - 1) * 20 + i) % all.length]; const v = 1 + (((p * 31 + i * 7) % 13) - 6) / 100; rows.push({ no: String(1040000 + p * 137 + i * 11), d: it[0], u: it[1], p: (Math.max(it[3], 4) * 0.94 * v).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }); }
+    const hits = q ? all.filter(it => it[0].toLowerCase().includes(q)).length * 3 : 0;
+    const pw = Math.round((isSheet ? 340 : 560) * z);
+    return {
+      isPdf: true, pdfPageLabel: `Page ${p} of ${total}`, pdfPrev: () => this.setState({ page: Math.max(1, p - 1) }), pdfNext: () => this.setState({ page: Math.min(total, p + 1) }),
+      pdfFind: this.state.pdfFind, onPdfFind: e => this.setState({ pdfFind: e.target.value }), pdfFindCount: q ? (hits ? `${hits} matches` : 'No matches') : '',
+      pdfRows: rows.map(r => ({ ...r, bg: q && r.d.toLowerCase().includes(q) ? '#ffe98a' : 'transparent' })),
+      thumbs: Array.from({ length: total }, (_, i) => ({ n: i + 1, ring: i + 1 === p ? '2px' : '0px', fg: i + 1 === p ? 'var(--accInk)' : 'var(--ink3)', select: () => this.setState({ page: i + 1 }) })),
+      pageW: pw, pagePad: Math.round(pw * 0.07), pageFs: Math.round(pw / 46 * 10) / 10,
+    };
+  }
+  docxVals() {
+    const q = this.state.docFind.trim().toLowerCase(); let hits = 0;
+    const docBlocks = NORMS.map(b => { const text = b.slice(1).join(' '); const m = q && text.toLowerCase().includes(q); if (m) hits++; return { h1: b[0] === 'h1', h2: b[0] === 'h2', p: b[0] === 'p', tr: b[0] === 'tr' || b[0] === 'th', fw: b[0] === 'th' ? 600 : 400, text: b[1], c0: b[1], c1: b[2] || '', c2: b[3] || '', bg: m ? '#ffe98a' : 'transparent' }; });
+    return { isDocx: true, docBlocks, docFind: this.state.docFind, onDocFind: e => this.setState({ docFind: e.target.value }), docFindCount: q ? (hits ? `${hits} matches` : 'No matches') : '' };
+  }
+}
+</script>
+</body>
+</html>

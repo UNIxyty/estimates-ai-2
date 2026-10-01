@@ -30,7 +30,7 @@ class ViewError(Exception):
 
 @dataclass(frozen=True)
 class Target:
-    kind: str           # file | document
+    kind: str           # file | document | upload
     id: str
     ext: str            # ext of the file being *viewed* (xls -> xlsx via work_path)
     view_path: str      # what the converters read
@@ -82,8 +82,19 @@ def resolve(kind: str, id_: str, *, need_view: bool = True) -> Target:
         ext = os.path.splitext(p)[1].lstrip(".").lower() or "xlsx"
         name = d["name"] if d["name"].lower().endswith(f".{ext}") else f"{d['name']}.{ext}"
         t = Target("document", id_, ext, p, p, ext, name, MIME_BY_EXT.get(ext, "application/octet-stream"))
+    elif kind == "upload":
+        u = db.fetchone("SELECT id, ext, mime, original_name, stored_path FROM uploads WHERE id = %s", (id_,))
+        if not u:
+            raise ViewError(404, "not_found")
+        ext = (u["ext"] or "").lower()
+        p = abs_path(u["stored_path"])
+        if ext == "xls" and need_view:
+            raise ViewError(415, "unsupported", "xls attachments cannot be previewed; download the original")
+        mime = u["mime"] or MIME_BY_EXT.get(ext) or mimetypes.guess_type(u["original_name"])[0] \
+            or "application/octet-stream"
+        t = Target("upload", id_, ext, p, p, ext, u["original_name"], mime)
     else:
-        raise ViewError(400, "bad_kind", "kind must be file or document")
+        raise ViewError(400, "bad_kind", "kind must be file, document or upload")
     path = t.view_path if need_view else t.raw_path
     if not os.path.isfile(path):
         raise ViewError(404, "not_found", "file missing on disk")

@@ -40,15 +40,15 @@ class Settings:
     worker_concurrency: int = field(default_factory=lambda: _int("WORKER_CONCURRENCY", 3))
 
     # Bedrock
-    aws_region: str = field(default_factory=lambda: _env("AWS_REGION", "eu-central-1"))
+    aws_region: str = field(default_factory=lambda: _env("AWS_REGION", "eu-north-1"))
     model_fast: str = field(default_factory=lambda: _env(
         "BEDROCK_MODEL_FAST", "eu.anthropic.claude-haiku-4-5-20251001-v1:0"))
     model_standard: str = field(default_factory=lambda: _env(
-        "BEDROCK_MODEL_STANDARD", "eu.anthropic.claude-sonnet-5-5"))
+        "BEDROCK_MODEL_STANDARD", "eu.anthropic.claude-sonnet-4-6"))
     model_advanced: str = field(default_factory=lambda: _env(
-        "BEDROCK_MODEL_ADVANCED", "eu.anthropic.claude-opus-5-5"))
+        "BEDROCK_MODEL_ADVANCED", "eu.anthropic.claude-opus-4-6-v1"))
     embedding_model: str = field(default_factory=lambda: _env(
-        "BEDROCK_EMBEDDING_MODEL", "cohere.embed-multilingual-v3"))
+        "BEDROCK_EMBEDDING_MODEL", "amazon.titan-embed-text-v2:0"))
     embedding_dim: int = 1024  # fixed by the vector(1024) columns
     llm_enabled: bool = field(default_factory=lambda: _env("LLM_ENABLED", "true").lower() != "false")
 

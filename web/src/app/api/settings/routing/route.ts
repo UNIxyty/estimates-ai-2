@@ -2,14 +2,22 @@ import { z } from 'zod';
 import { sql } from '@/lib/db';
 import { badRequest, json, readJson, route } from '@/lib/http';
 import { requireAdmin, requireUser } from '@/lib/auth/guard';
+import { routingSpend } from '@/lib/usage';
 import { defaultPrices, defaultRouting, getSetting, pricesSchema, putSetting, routingSchema } from '@/lib/settings';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 async function current() {
-  const [routing, prices] = await Promise.all([getSetting('routing', defaultRouting), getSetting('prices', defaultPrices)]);
-  return { routing: routing.value, prices: prices.value, is_default: { routing: routing.is_default, prices: prices.is_default } };
+  const [routing, prices, spend] = await Promise.all([getSetting('routing', defaultRouting), getSetting('prices', defaultPrices), routingSpend()]);
+  return {
+    routing: routing.value,
+    prices: prices.value,
+    is_default: { routing: routing.is_default, prices: prices.is_default },
+    /** Additive: the default task map (for "Default" and "Reset to defaults") and this month's spend per tier / task. */
+    defaults: { tasks: defaultRouting().tasks },
+    spend_month: spend,
+  };
 }
 
 export const GET = route(async (req) => {

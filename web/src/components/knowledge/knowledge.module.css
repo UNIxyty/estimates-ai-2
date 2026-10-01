@@ -1,0 +1,23 @@
+/* Inline-editable table cells (design: style-focus="border-color:var(--acc);background:var(--bg);outline:0;"). */
+.cellInput:focus {
+  border-color: var(--acc) !important;
+  background: var(--bg) !important;
+  outline: 0;
+}
+.cellInput:hover:not(:focus):not(:disabled) {
+  border-color: var(--line) !important;
+}
+.cellInvalid {
+  border-color: var(--err) !important;
+}
+
+/* Row delete (×): hover turns red (design: style-hover="background:var(--errSoft);color:var(--err);"). */
+.delBtn:hover {
+  background: var(--errSoft) !important;
+  color: var(--err) !important;
+}
+
+/* Note "Delete": hover turns red text only. */
+.errText:hover {
+  color: var(--err) !important;
+}

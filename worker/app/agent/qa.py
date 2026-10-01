@@ -27,8 +27,8 @@ from the stored source, norm, hourly rate, confidence and reason.
 file X", call request_file_permission for those rows instead of using it.
 - Web prices are retail (can be ~40% above contract prices); say so when you use one.
 - To email the estimate call send_email. It always goes to the user's own "Send estimates to" address.
-- Refer to estimate rows as [[row:SHEET!ROW]] and to knowledge files as [[file:FILE_ID]]; the UI turns these \
-into clickable chips. Write in English, plain text, short paragraphs, no tables.
+- Refer to estimate rows as [[row:SHEET!ROW]] and to knowledge files as [[file:FILE_ID]] (or \
+[[file:FILE_ID!SHEET!ROW]] for one row of a knowledge file); the UI turns these into clickable chips. Write in English, plain text, short paragraphs, no tables.
 """
 
 
@@ -75,8 +75,15 @@ def to_parts(rc: RunContext, text: str) -> list[dict]:
                               "row": int(row), "label": f"Row {int(row)}"})
             except ValueError:
                 parts.append({"type": "text", "text": m.group(0)})
-        elif kind == "file" and ref in rc.kb.files:
-            parts.append({"type": "chip", "kind": "file", "file_id": ref, "label": rc.kb.file_name(ref)})
+        elif kind == "file" and ref.split("!", 1)[0].strip() in rc.kb.files:
+            # [[file:ID]] or [[file:ID!SHEET!ROW]] (a row of a knowledge file; the viewer opens there)
+            fid, _, loc = ref.partition("!")
+            fid = fid.strip()
+            chip = {"type": "chip", "kind": "file", "file_id": fid, "label": rc.kb.file_name(fid)}
+            sheet, _, row = loc.rpartition("!")
+            if row.strip().isdigit():
+                chip.update(sheet=sheet.strip() or None, row=int(row))
+            parts.append(chip)
         else:
             parts.append({"type": "text", "text": m.group(0)})
         pos = m.end()

@@ -99,7 +99,7 @@ def make_blank(src: str, dst: str) -> dict[tuple[str, int], dict]:
     return truth
 
 
-def fill(blank_path: str, name: str, user: dict, allowed: list[str]) -> dict:
+def fill(blank_path: str, name: str, user: dict, allowed: list[str], truth_sheets: set[str] | None = None) -> dict:
     conv = db.fetchone("INSERT INTO conversations(user_id, title) VALUES (%s,%s) RETURNING *", (user["id"], f"gate {name}"))
     up_id = str(uuid.uuid4())
     d = os.path.join(settings.data_dir, "uploads", up_id)
@@ -120,7 +120,9 @@ def fill(blank_path: str, name: str, user: dict, allowed: list[str]) -> dict:
         card = db.fetchone("SELECT * FROM cards WHERE run_id=%s AND kind='clarify' AND status='pending'", (rid,))
         if not card:
             break
-        opts = card["payload"]["questions"][0].get("suggested") or card["payload"]["questions"][0]["options"]
+        q = card["payload"]["questions"][0]
+        # Answer like the estimator would: the sheets that hold the hand-priced rows (names only, blind to prices).
+        opts = [o for o in q["options"] if truth_sheets and o in truth_sheets] or q.get("suggested") or q["options"]
         db.execute("""UPDATE cards SET status='answered', decision=%s WHERE id=%s""",
                    (db.jsonb({"action": "answer", "data": {"answers": {"sheets": opts}}}), card["id"]))
         agent_run.resume_run({"run_id": rid, "card_id": str(card["id"])})
@@ -238,11 +240,11 @@ def main(argv: list[str] | None = None) -> int:
             truth = make_blank(src, blank)
             allowed = [fid for p, fid in ref_ids.items() if fid not in hidden] + extra
             print(f"Held out {name}: {len(truth)} hand-priced rows; filling with {len(allowed)} file(s)…")
-            res = fill(blank, name, user, allowed)
+            res = fill(blank, name, user, allowed, truth_sheets={k[0] for k in truth})
             sc = score(res["run"], truth)
             results.append({"name": name, "score": sc, "seconds": res["seconds"]})
             print(f"  labour {sc['labour']['within_15pct']}/{sc['labour']['rows']}, material "
-                  f"{sc['material']['within_15pct']}/{sc['material']['rows']}, ${sc['cost_usd']:.4f}")
+                  f"{sc['material']['within_15pct']}/{sc['material']['rows']}, ${sc['cost_usd']:.4f}, run {sc['status']}")
         finally:
             db.execute("UPDATE files SET deleted_at=NULL WHERE id = ANY(%s)", (hidden,))
     report = render(results, ingest_cost)

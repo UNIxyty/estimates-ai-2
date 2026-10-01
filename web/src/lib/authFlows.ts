@@ -82,3 +82,18 @@ export async function changePassword(userId: string, sessionId: string, current:
     await invalidateUserSessions(userId, tx, sessionId);
   });
 }
+
+/**
+ * GET /api/auth/token: link state plus, only for a still-valid invite, `inviter` = the inviting admin's display
+ * name (auth_tokens.created_by → users.name; null when unknown, e.g. the inviter was deleted or has no name).
+ */
+export async function describeToken(token: string | null | undefined) {
+  const info = await inspectToken(token);
+  const base = { state: info.state, kind: info.kind, email: info.state === 'invalid' ? null : info.email };
+  if (info.state !== 'valid' || info.kind !== 'invite' || !token) return base;
+  const r = (await sql<{ name: string | null }[]>`
+    SELECT NULLIF(btrim(u.name), '') AS name
+      FROM auth_tokens t LEFT JOIN users u ON u.id = t.created_by
+     WHERE t.token_hash = ${hashToken(token)}`)[0];
+  return { ...base, inviter: r?.name ?? null };
+}

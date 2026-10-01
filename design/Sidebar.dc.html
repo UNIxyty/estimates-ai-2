@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<sc-if value="{{ showBackdrop }}" hint-placeholder-val="{{ false }}"><div onClick="{{ closeDrawer }}" style="position:fixed;inset:0;z-index:40;background:rgba(10,12,16,0.4);"></div></sc-if>
+<sc-if value="{{ visible }}" hint-placeholder-val="{{ true }}">
+<aside style="width:{{ width }}px;height:100%;flex:none;display:flex;flex-direction:column;background:var(--side);border-right:1px solid var(--line);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:13.5px;color:var(--ink);position:{{ pos }};left:0;top:0;bottom:0;z-index:41;box-shadow:{{ shadow }};">
+  <div style="height:56px;flex:none;display:flex;align-items:center;gap:10px;padding:0 12px 0 14px;">
+    <sc-if value="{{ expanded }}" hint-placeholder-val="{{ true }}">
+      <a href="chat-new.dc.html" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);flex:1;min-width:0;">
+        <span style="width:24px;height:24px;flex:none;border-radius:6px;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;">E</span>
+        <span style="font-weight:600;font-size:14.5px;letter-spacing:-0.01em;white-space:nowrap;">Estimates AI Agent</span>
+      </a>
+    </sc-if>
+    <button onClick="{{ toggle }}" title="{{ toggleTitle }}" style="width:32px;height:32px;flex:none;border:0;border-radius:8px;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:var(--sunk);">
+      <span style="width:16px;height:13px;border:1.5px solid var(--ink2);border-radius:3px;display:flex;"><span style="width:5px;border-right:1.5px solid var(--ink2);"></span></span>
+    </button>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:2px;padding:4px 8px 10px;">
+    <a href="chat-new.dc.html" title="New estimate" style="display:flex;align-items:center;gap:10px;height:38px;padding:0 10px;border-radius:9px;text-decoration:none;color:var(--accInk);font-weight:600;" style-hover="background:var(--accSoft);">
+      <span style="width:22px;height:22px;flex:none;border-radius:50%;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;">+</span>
+      <sc-if value="{{ expanded }}" hint-placeholder-val="{{ true }}"><span>New estimate</span></sc-if>
+    </a>
+    <sc-for list="{{ nav }}" as="n" hint-placeholder-count="3">
+      <a href="{{ n.href }}" title="{{ n.label }}" style="display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:9px;text-decoration:none;color:{{ n.fg }};background:{{ n.bg }};font-weight:{{ n.fw }};" style-hover="background:var(--sunk);">
+        <span style="width:22px;flex:none;text-align:center;color:var(--ink3);font-size:14px;">{{ n.icon }}</span>
+        <sc-if value="{{ expanded }}" hint-placeholder-val="{{ true }}"><span style="flex:1;">{{ n.label }}</span><span style="font-size:11.5px;color:var(--ink3);">{{ n.meta }}</span></sc-if>
+      </a>
+    </sc-for>
+  </div>
+  <div style="flex:1;min-height:0;overflow:auto;padding:0 8px 8px;">
+    <sc-if value="{{ expanded }}" hint-placeholder-val="{{ true }}">
+      <sc-for list="{{ convs }}" as="c" hint-placeholder-count="8">
+        <sc-if value="{{ c.group }}" hint-placeholder-val="{{ false }}"><div style="padding:14px 10px 6px;font-size:11.5px;font-weight:500;color:var(--ink3);">{{ c.group }}</div></sc-if>
+        <a href="{{ c.href }}" style="display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;border-radius:8px;text-decoration:none;color:var(--ink);background:{{ c.bg }};" style-hover="background:var(--sunk);">
+          <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.title }}</span>
+          <sc-if value="{{ c.busy }}" hint-placeholder-val="{{ false }}"><span title="Agent is working" style="width:7px;height:7px;border-radius:50%;background:var(--acc);flex:none;"></span></sc-if>
+          <span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;color:var(--ink3);">{{ c.lang }}</span>
+        </a>
+      </sc-for>
+    </sc-if>
+  </div>
+  <div style="flex:none;border-top:1px solid var(--line);padding:10px 8px;display:flex;align-items:center;gap:8px;">
+    <a href="settings-profile.dc.html" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:4px 6px;border-radius:8px;text-decoration:none;color:var(--ink);" style-hover="background:var(--sunk);">
+      <span style="width:30px;height:30px;flex:none;border-radius:50%;background:var(--accSoft);color:var(--accInk);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600;">MK</span>
+      <sc-if value="{{ expanded }}" hint-placeholder-val="{{ true }}"><span style="display:flex;flex-direction:column;line-height:1.25;min-width:0;"><span style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Mārtiņš Kalniņš</span><span style="font-size:11.5px;color:var(--ink3);">Admin</span></span></sc-if>
+    </a>
+    <sc-if value="{{ expanded }}" hint-placeholder-val="{{ true }}">
+      <button onClick="{{ toggleTheme }}" title="Switch theme" style="height:30px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink2);font:inherit;font-size:12px;cursor:pointer;" style-hover="color:var(--ink);">{{ themeLabel }}</button>
+    </sc-if>
+  </div>
+</aside>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:264,&quot;height&quot;:800},&quot;active&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;chat&quot;,&quot;knowledge&quot;,&quot;history&quot;,&quot;settings&quot;],&quot;default&quot;:&quot;chat&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;current&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;collapsed&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;mobile&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;open&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;onClose&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;() =&gt; void&quot;}}">
+const CONVS = [
+  ['Today', 'Data center Hal B, Aarhus', 'result', 'DA'], [null, 'Braila 24, 2nd floor', 'worklist', 'LV'], [null, 'Office fit-out, Teikums', 'working', 'LV', 1],
+  ['Yesterday', 'Warehouse lighting retrofit', 'permission', 'EN'], [null, 'Kontor 400 m², Vesterbro', 'vague', 'DA'],
+  ['Previous 7 days', 'Skolegade 14, renovering', 'emailfail', 'DA'], [null, 'Ķekava private house', 'nothing', 'LV'], [null, 'Data center Hal A, Aarhus', 'resultA', 'DA'],
+  ['September', 'Tallinn retail unit', 'resultT', 'EN'], [null, 'Priedes iela 4, apartments', 'resultP', 'LV'],
+];
+class Component extends DCLogic {
+  state = { collapsed: false, theme: 'light' };
+  componentDidMount() { try { this.setState({ collapsed: localStorage.getItem('eaa-side') === '1', theme: document.documentElement.dataset.theme || 'light' }); } catch (e) {} }
+  renderVals() {
+    const mobile = !!this.props.mobile, open = !!this.props.open;
+    const collapsed = !mobile && (this.props.collapsed ?? this.state.collapsed);
+    const act = this.props.active || 'chat', cur = this.props.current;
+    const nav = [['knowledge', 'Knowledge base', 'knowledge.dc.html', '▤', '14 files'], ['history', 'History', 'history.dc.html', '◷', ''], ['settings', 'Settings', 'settings-usage.dc.html', '◎', '']]
+      .map(([k, label, href, icon, meta]) => ({ label, href, icon, meta, bg: act === k ? 'var(--sunk)' : 'transparent', fg: act === k ? 'var(--ink)' : 'var(--ink2)', fw: act === k ? 500 : 400 }));
+    return {
+      visible: !mobile || open, showBackdrop: mobile && open, expanded: !collapsed,
+      width: collapsed ? 60 : (mobile ? 290 : 264), pos: mobile ? 'fixed' : 'relative', shadow: mobile ? '0 10px 40px rgba(0,0,0,0.25)' : 'none',
+      closeDrawer: () => this.props.onClose && this.props.onClose(),
+      toggle: () => { if (mobile) { this.props.onClose && this.props.onClose(); return; } const c = !collapsed; this.setState({ collapsed: c }); try { localStorage.setItem('eaa-side', c ? '1' : '0'); } catch (e) {} },
+      toggleTitle: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
+      nav,
+      convs: CONVS.map(c => ({ group: c[0], title: c[1], lang: c[3], busy: !!c[4], href: 'chat.dc.html?s=' + c[2], bg: cur === c[2] ? 'var(--sunk)' : 'transparent' })),
+      themeLabel: this.state.theme === 'dark' ? 'Light' : 'Dark',
+      toggleTheme: () => { const t = this.state.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = t; try { localStorage.setItem('eaa-theme', t); } catch (e) {} this.setState({ theme: t }); },
+    };
+  }
+}
+</script>
+</body>
+</html>

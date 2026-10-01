@@ -95,6 +95,62 @@ def test_denied_file_is_ignored_and_row_goes_to_web(_env):
     assert p.blocked_file is None or p.blocked_file["file_id"] != other
 
 
+def test_denied_rows_go_to_web_even_when_another_unselected_file_matches(_env):
+    """After Deny, the same rows must not be parked behind a card for the next unselected file."""
+    allowed = fx.make_file("allowed3.xlsx", items=[REF_ITEMS[2]])
+    denied = fx.make_file("denied3.xlsx", items=[REF_ITEMS[0]])
+    also = fx.make_file("also_unselected.xlsx", items=[REF_ITEMS[0]])
+    _env.extend([allowed, denied, also])
+
+    def web(spec):
+        return {"product": "NYM-J 3x1,5 100m", "unit_price": 1.19, "currency": "EUR", "url": "https://shop.example/x",
+                "fetched_at": "2026-09-30T00:00:00Z"}
+
+    spec = RowSpec("E", 15, "Kabelis NYM-J 3x1,5 mm2 guldīšana", "m", 50)
+    [first] = _engine([allowed], denied=[denied], web_lookup=web).price([spec])
+    assert first.source == "pending_permission"  # without the denied-rows hint it asks about the other file
+    [p] = _engine([allowed], denied=[denied], web_lookup=web).price([spec], denied_rows={spec.rid})
+    assert p.source == "web" and p.unit_material == pytest.approx(1.19)
+
+
+def test_refused_pricing_model_falls_back_instead_of_failing(_env):
+    object.__setattr__(llm.settings, "llm_enabled", True)
+    ref = fx.make_file("ref_G.xlsx", items=[
+        {"text": f"Gaismeklis LED panelis {w}W iebūvējams", "unit": "gab.", "norm_h": 0.6, "labour": 7.2,
+         "material": 30 + w, "rate": 12} for w in (18, 24, 36, 40)])
+    _env.append(ref)
+
+    def refused(req):
+        raise fx.aws_access_denied()
+
+    llm.set_bedrock_factory(lambda: fx.FakeBedrock([refused] * 5))
+    specs = [RowSpec("E", 30 + i, f"LED gaismeklis panelis {w}W virsapmetuma", "gab.", 2) for i, w in
+             enumerate((20, 22, 30, 32, 38, 42))]
+    eng = _engine([ref])
+    rows = eng.price(specs)                      # no exception: the run goes on
+    assert "model_error" in eng.stats and len(rows) == len(specs)
+    assert all(p.source in ("semantic", "none") and not p.model_used for p in rows)
+
+
+def test_bedrock_unreachable_falls_back_instead_of_failing(_env):
+    object.__setattr__(llm.settings, "llm_enabled", True)
+    ref = fx.make_file("ref_H.xlsx", items=[
+        {"text": f"Gaismeklis LED panelis {w}W iebūvējams", "unit": "gab.", "norm_h": 0.6, "labour": 7.2,
+         "material": 30 + w, "rate": 12} for w in (18, 24, 36, 40)])
+    _env.append(ref)
+
+    def offline(req):
+        from botocore.exceptions import EndpointConnectionError
+        raise EndpointConnectionError(endpoint_url="https://bedrock-runtime.eu-north-1.amazonaws.com/model/x/converse")
+
+    llm.set_bedrock_factory(lambda: fx.FakeBedrock([offline] * 5))
+    specs = [RowSpec("E", 40 + i, f"LED gaismeklis panelis {w}W virsapmetuma", "gab.", 2) for i, w in
+             enumerate((20, 30, 42))]
+    eng = _engine([ref])
+    rows = eng.price(specs)
+    assert "unreachable" in eng.stats["model_error"] and len(rows) == 3
+
+
 def test_norms_parameterised_beats_category(_env):
     ref = fx.make_file("ref_E.xlsx", items=[REF_ITEMS[0]], rate=12)
     norms = fx.make_file("norms.xlsx", tag="hourly_norms", items=[], norms=[

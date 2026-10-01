@@ -49,7 +49,8 @@ def spec_from(d: dict) -> RowSpec:
 
 
 def price_with_events(rc: RunContext, specs: list[RowSpec], *, task: str, target_rate: float | None,
-                      step_prefix: str = "price") -> tuple[list[PricedRow], dict]:
+                      step_prefix: str = "price", denied_rows: set[str] | None = None,
+                      ) -> tuple[list[PricedRow], dict]:
     em = rc.emitter
     started: set[str] = set()
 
@@ -60,6 +61,21 @@ def price_with_events(rc: RunContext, specs: list[RowSpec], *, task: str, target
             em.step_started(sid, STAGE_LABELS.get(stage, stage), total)
         em.step_progress(sid, done, total)
         rc.check()
+
+    last: dict[str, tuple[int, int]] = {}
+
+    def progress_tracked(stage: str, done: int, total: int) -> None:
+        last[stage] = (done, total)
+        progress(stage, done, total)
+
+    def current(stage: str, text: str) -> None:
+        # The item being priced right now ("Now: …" under the step); only the slow web stage reports it.
+        sid = f"{step_prefix}:{stage}"
+        done, total = last.get(stage, (0, 0))
+        if sid not in started:
+            started.add(sid)
+            em.step_started(sid, STAGE_LABELS.get(stage, stage), total or None)
+        em.emit("step.progress", {"step_id": sid, "done": done, "total": total or None, "current": text[:120]})
 
     emb = None
     if rc.kb.has_embeddings:
@@ -75,16 +91,19 @@ def price_with_events(rc: RunContext, specs: list[RowSpec], *, task: str, target
                                     must_tokens={t for t in tokens(spec.text) if len(t) > 3} or None)
 
     eng = PricingEngine(rc.kb, allowed=rc.allowed, denied=rc.denied, ctx=rc.ctx, target_rate=target_rate,
-                        task=task, forced_tier=rc.forced_tier, progress=progress,
+                        task=task, forced_tier=rc.forced_tier, progress=progress_tracked, current=current,
                         web_lookup=web_lookup if websearch.provider().configured() else None,
                         should_stop=rc.should_stop)
-    priced = eng.price(specs, embeddings=emb)
+    priced = eng.price(specs, embeddings=emb, denied_rows=denied_rows)
     for sid in started:
         em.step_done(sid)
     s = eng.stats
     em.step_done(f"{step_prefix}:exact",
                  f"{s['exact']} exact · {s['semantic']} close · {s['norm']} norm · {s['model']} model · "
                  f"{s['web']} web · {s['none']} no price")
+    if s.get("model_error"):
+        em.step_warn(f"{step_prefix}:model", "The pricing model could not be used, so unclear rows were matched "
+                                              f"without it: {s['model_error'][:160]}")
     if s["none"]:
         em.step_warn(f"{step_prefix}:none", f"{s['none']} row(s) have no price in any allowed file, norm or web source",
                      rows=[{"sheet": p.spec.sheet, "row": p.spec.row, "label": p.spec.text[:60]}
@@ -128,11 +147,17 @@ def summary_parts(doc: dict, priced: list[PricedRow], stats: dict, *, lang: str 
              f"Total {t.get('total', 0):,.2f} {cur}."]
     parts: list[dict] = [{"type": "text", "text": "\n".join(lines)}]
     doc_id = str(doc["id"])
-    for flag, label in (("CHECK", "Please check (low confidence):"), ("NO PRICE", "No price found:"),
+    no_price = sum(1 for p in priced if "NO PRICE" in p.flags)
+    for flag, label in (("CHECK", "Please check (low confidence):"),
+                        ("NO PRICE", f"I couldn't find a price for {no_price} row{'s' if no_price != 1 else ''} in your "
+                                     f"references, norms or on supplier sites. {'They are' if no_price != 1 else 'It is'} "
+                                     f"left empty and marked NO PRICE. Type a price in the viewer, or send me a supplier "
+                                     f"link and I'll use it:"),
                         ("PENDING", "Waiting for your permission:")):
         chips = _chips(doc_id, priced, flag)
         if chips:
-            parts.append({"type": "text", "text": label})
+            # tone "warn": the UI shows this paragraph as an amber note ("nothing found").
+            parts.append({"type": "text", "text": label, **({"tone": "warn"} if flag == "NO PRICE" else {})})
             parts.extend(chips)
     text = "\n".join(p["text"] for p in parts if p["type"] == "text")
     return text, parts
@@ -144,7 +169,8 @@ def publish_document(rc: RunContext, *, message_id: str, doc: dict, web: list[di
     existing = db.fetchone("""SELECT id, payload FROM cards WHERE conversation_id=%s AND kind='document'
                               AND payload->>'document_id'=%s""", (rc.conversation_id, str(doc["id"])))
     payload = {"document_id": str(doc["id"]), "name": doc["name"], "totals": doc["totals"],
-               "currency": doc["currency"], "version": doc["version"], "language": doc["language"]}
+               "currency": doc["currency"], "version": doc["version"], "language": doc["language"],
+               "sheets": list((doc.get("layout") or {}).keys())}
     if existing:
         cards.update(str(existing["id"]), payload=payload)
     else:
@@ -198,7 +224,8 @@ def resume_after_permission(rc: RunContext, card: dict) -> None:
                                                  f"{len(specs)} row(s)", len(specs))
     task = "generate" if rc.run["kind"] == "generate" else "fill_blank"
     priced, stats = price_with_events(rc, specs, task=task, target_rate=rc.state.get("target_rate"),
-                                      step_prefix=f"perm:{card['id']}")
+                                      step_prefix=f"perm:{card['id']}",
+                                      denied_rows={s.rid for s in specs} if decision == "Denied" else None)
     layouts = {k: SheetLayout(v["name"], v["cols"]) for k, v in rc.state["layouts"].items()}
     doc, web, rep = documents.save_document(run=rc.run, name="", mode=rc.run["kind"], src_path=rc.state["src_path"],
                                             layouts=layouts, rows=[documents.priced_to_row(p) for p in priced],

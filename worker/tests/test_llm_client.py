@@ -25,9 +25,9 @@ def _run(cap=2.0):
 
 
 def test_cost_from_actual_usage_and_price_table():
-    cost = ledger.cost_usd("eu.anthropic.claude-sonnet-5-5", Usage(1_000_000, 100_000, 2_000_000, 0))
-    # 1M in × $2 + 0.1M out × $10 + 2M cache-read × $0.20
-    assert cost == pytest.approx(2.0 + 1.0 + 0.4)
+    cost = ledger.cost_usd("eu.anthropic.claude-sonnet-4-6", Usage(1_000_000, 100_000, 2_000_000, 0))
+    # eu-north-1 regional: 1M in × $3.30 + 0.1M out × $16.50 + 2M cache-read × $0.33
+    assert cost == pytest.approx(3.30 + 1.65 + 0.66)
 
 
 def test_converse_logs_ledger_row_with_tokens_and_cost():
@@ -151,3 +151,27 @@ def test_unavailable_when_disabled(monkeypatch):
             llm.converse(task="short_reply", messages=[], ctx=Ctx())
     finally:
         object.__setattr__(llm.settings, "llm_enabled", True)
+
+
+def _access_denied(req):
+    raise fx.aws_access_denied()
+
+
+def test_access_denied_disables_only_that_model_for_a_while(monkeypatch):
+    fake = fx.FakeBedrock([_access_denied, fx.text_response("fast ok")])
+    llm.set_bedrock_factory(lambda: fake)
+    run, conv, u = _run()
+    ctx = Ctx(user_id=str(u["id"]), conversation_id=str(conv["id"]), run_id=str(run["id"]))
+    msgs = [{"role": "user", "content": [{"text": "hi"}]}]
+    with pytest.raises(llm.ModelUnavailable):
+        llm.converse(task="fill_blank", messages=msgs, ctx=ctx)            # standard tier refused
+    assert llm.available()                                                  # …but the LLM layer is still up
+    assert llm.converse(task="simple_question", messages=msgs, ctx=ctx).text == "fast ok"   # fast still works
+    sent = len(fake.requests)
+    with pytest.raises(llm.ModelUnavailable):
+        llm.converse(task="fill_blank", messages=msgs, ctx=ctx)            # skipped without calling Bedrock
+    assert len(fake.requests) == sent
+    standard = config_store.routing()["tiers"]["standard"]["model_id"]
+    assert standard in llm.unavailable_models()
+    monkeypatch.setattr(llm.time, "monotonic", lambda: 10**12)              # after the TTL it is retried
+    assert llm.model_unavailable_reason(standard) is None

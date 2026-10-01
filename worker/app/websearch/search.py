@@ -205,8 +205,21 @@ def find_price(query: str, *, ctx: Ctx, must_tokens: set[str] | None = None) -> 
     prov = provider()
     if not prov.configured():
         return None
+    hits: list[SearchHit] = []
     try:
-        hits = prov.search(query, count=6)
+        # One retry for transient failures (DNS, timeouts, 429/5xx). If the search API stays down, this row
+        # simply has no web price; it must never fail the whole run.
+        for attempt in (1, 2):
+            try:
+                hits = prov.search(query, count=6)
+                break
+            except httpx.HTTPError as e:
+                status = getattr(getattr(e, "response", None), "status_code", None)
+                transient = status is None or status == 429 or status >= 500
+                if attempt == 2 or not transient:
+                    log.warning("web search failed for %r: %s", query[:80], e)
+                    return None
+                time.sleep(1.5)
     finally:
         ledger.record(ctx=ctx, kind="web_search", task="web_search", tier=None, model_id=prov.name, units=1,
                       meta={"query": query})

@@ -1,12 +1,13 @@
-import { DesignPending } from '@/components/DesignPending';
-import { FileDetail } from './FileDetail';
+import { Suspense } from 'react';
+import { FileDetail } from '@/components/knowledge/detail/FileDetail';
+
+export const metadata = { title: 'File · Knowledge base' };
 
 export default async function KnowledgeFilePage({ params }: { params: Promise<{ fileId: string }> }) {
   const { fileId } = await params;
   return (
-    <section>
-      <DesignPending />
+    <Suspense>
       <FileDetail fileId={fileId} />
-    </section>
+    </Suspense>
   );
 }

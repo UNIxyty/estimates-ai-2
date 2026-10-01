@@ -1,552 +1,338 @@
 'use client';
 
+/**
+ * design/chat.dc.html (DESIGN.md §4.7): header (title, language tag, conversation cost), messages column,
+ * composer, optional document viewer on the right. Every scenario of the design is a real state here:
+ * working steps come from step.* run events, cards from card.* events, "blocked" from GET /api/budget/status.
+ */
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { api, ApiError, usd } from '@/lib/client';
-import { DocViewer } from '@/components/DocViewer';
-import { CardView, type Card } from './CardView';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { api } from '@/lib/client';
+import { MenuButton, useShell } from '@/components/Shell';
+import { fmtUsd, fmtWhen, LangTag } from '@/components/ui';
+import { ViewerLayout } from '@/components/viewer/ViewerLayout';
+import { useDocViewer } from '@/components/viewer/useDocViewer';
+import type { DocRef } from '@/components/viewer/types';
+import { Composer, loadPicker, uploadRole, type ComposerChip, type ComposerHandle } from './Composer';
+import { ChatContext, type ChatCtx } from './context';
+import { AgentMessage, UserMessage } from './Message';
+import { StepsBlock, type StepsStatus } from './Blocks';
+import { postChatMessage, sendErrorText } from './send';
+import { BLOCKING, TERMINAL, type Card, type ChatMessage, type FileRef, type LiveRun, type Step } from './types';
+import { useConversation } from './useConversation';
 
-interface Message {
-  id: string;
-  run_id: string | null;
-  role: 'user' | 'assistant';
-  content: string;
-  parts: any[];
-  tier?: string | null;
-  model_id?: string | null;
-  cost_usd?: number | null;
-  created_at: string;
-  streaming?: boolean;
-}
-interface Step {
-  step_id: string;
-  label: string;
-  done?: number;
-  total?: number;
-  state: 'running' | 'done';
-  summary?: string;
-  warns: { message: string; rows?: { sheet: string; row: number; label: string }[] }[];
-}
-interface LiveRun {
-  id: string;
-  status: string;
-  error?: string;
-  steps: Record<string, Step>;
-  stepOrder: string[];
-  cost?: number;
-  connection: 'connecting' | 'open' | 'closed' | 'error';
-}
-interface Doc {
-  id: string;
-  name: string;
-  totals?: any;
-  created_at: string;
-}
-interface PickerFile {
-  id: string;
-  original_name: string;
-  tag: string;
-}
+interface Budget { state: string; action: string; blocked: boolean; fast_only: boolean; spent_usd: number; amount_usd: number; message: string | null }
 
-const TERMINAL = ['done', 'failed', 'cancelled'];
-const BLOCKING = ['queued', 'running'];
+/** Steps of a run, split by the assistant message they led to (see anchorSteps). */
+interface Segment { runId: string; steps: Step[]; status: StepsStatus; startedAt: number; endedAt: number }
 
-export function ChatView({ conversationId }: { conversationId: string | null }) {
-  const router = useRouter();
-  const search = useSearchParams();
-  const [title, setTitle] = useState('New estimate');
-  const [messages, setMessages] = useState<Record<string, Message>>({});
-  const [cards, setCards] = useState<Record<string, Card>>({});
-  const [docs, setDocs] = useState<Record<string, Doc>>({});
-  const [runs, setRuns] = useState<Record<string, LiveRun>>({});
-  const [convCost, setConvCost] = useState(0);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [locked, setLocked] = useState<boolean | null>(null);
-  const sources = useRef<Record<string, EventSource>>({});
-
-  // ---------------------------------------------------------------- state helpers
-  const upsertMessage = useCallback((m: Partial<Message> & { id: string }) => {
-    setMessages((cur) => ({ ...cur, [m.id]: { ...(cur[m.id] || { role: 'assistant', content: '', parts: [], run_id: null, created_at: new Date().toISOString() }), ...m } as Message }));
-  }, []);
-  const upsertCard = useCallback((c: Card) => setCards((cur) => ({ ...cur, [c.id]: c })), []);
-  const patchRun = useCallback((id: string, fn: (r: LiveRun) => LiveRun) => {
-    setRuns((cur) => {
-      const r = cur[id] || { id, status: 'queued', steps: {}, stepOrder: [], connection: 'connecting' as const };
-      return { ...cur, [id]: fn(r) };
-    });
-  }, []);
-
-  const load = useCallback(async () => {
-    if (!conversationId) return null;
-    try {
-      const d = await api<any>(`/api/conversations/${conversationId}`);
-      setTitle(d.conversation.title);
-      setMessages(Object.fromEntries(d.messages.map((m: Message) => [m.id, m])));
-      setCards(Object.fromEntries(d.cards.map((c: Card) => [c.id, c])));
-      setDocs(Object.fromEntries(d.documents.map((x: Doc) => [x.id, x])));
-      setConvCost(d.total_cost_usd);
-      return d;
-    } catch (e) {
-      setLoadError(e instanceof ApiError && e.status === 404 ? 'Conversation not found.' : String((e as Error).message));
-      return null;
-    }
-  }, [conversationId]);
-
-  // ---------------------------------------------------------------- SSE
-  const subscribe = useCallback(
-    (runId: string, status = 'queued') => {
-      if (sources.current[runId]) return;
-      patchRun(runId, (r) => ({ ...r, status: r.status || status, connection: 'connecting' }));
-      // Replay from the start of the run so the live view is rebuilt after a reload; EventSource's own
-      // reconnects send Last-Event-ID, which the proxy prefers over ?after.
-      const es = new EventSource(`/api/runs/${runId}/events?after=0`);
-      sources.current[runId] = es;
-      const data = (e: MessageEvent) => {
-        try {
-          const j = JSON.parse(e.data);
-          return j && typeof j === 'object' && 'payload' in j && 'type' in j ? j.payload : j;
-        } catch {
-          return {};
-        }
-      };
-      es.onopen = () => patchRun(runId, (r) => ({ ...r, connection: 'open' }));
-      es.onerror = () => patchRun(runId, (r) => ({ ...r, connection: TERMINAL.includes(r.status) ? 'closed' : 'error' }));
-      es.addEventListener('run.status', (e) => {
-        const p = data(e as MessageEvent);
-        patchRun(runId, (r) => ({ ...r, status: p.status, error: p.error }));
-        if (TERMINAL.includes(p.status)) {
-          es.close();
-          delete sources.current[runId];
-          patchRun(runId, (r) => ({ ...r, connection: 'closed' }));
-          load();
-        }
-      });
-      es.addEventListener('step.started', (e) => {
-        const p = data(e as MessageEvent);
-        patchRun(runId, (r) => ({
-          ...r,
-          stepOrder: r.stepOrder.includes(p.step_id) ? r.stepOrder : [...r.stepOrder, p.step_id],
-          steps: { ...r.steps, [p.step_id]: { step_id: p.step_id, label: p.label, total: p.total, done: 0, state: 'running', warns: r.steps[p.step_id]?.warns || [] } },
-        }));
-      });
-      es.addEventListener('step.progress', (e) => {
-        const p = data(e as MessageEvent);
-        patchRun(runId, (r) => {
-          const s = r.steps[p.step_id] || { step_id: p.step_id, label: p.label || p.step_id, state: 'running' as const, warns: [] };
-          return {
-            ...r,
-            stepOrder: r.stepOrder.includes(p.step_id) ? r.stepOrder : [...r.stepOrder, p.step_id],
-            steps: { ...r.steps, [p.step_id]: { ...s, done: p.done, total: p.total, label: p.label || s.label } },
-          };
-        });
-      });
-      es.addEventListener('step.done', (e) => {
-        const p = data(e as MessageEvent);
-        patchRun(runId, (r) => {
-          const s = r.steps[p.step_id] || { step_id: p.step_id, label: p.step_id, warns: [] };
-          return { ...r, steps: { ...r.steps, [p.step_id]: { ...s, state: 'done', summary: p.summary } as Step } };
-        });
-      });
-      es.addEventListener('step.warn', (e) => {
-        const p = data(e as MessageEvent);
-        patchRun(runId, (r) => {
-          const s = r.steps[p.step_id] || { step_id: p.step_id, label: p.step_id, state: 'running' as const, warns: [] };
-          return {
-            ...r,
-            stepOrder: r.stepOrder.includes(p.step_id) ? r.stepOrder : [...r.stepOrder, p.step_id],
-            steps: { ...r.steps, [p.step_id]: { ...s, warns: [...s.warns, { message: p.message, rows: p.rows }] } },
-          };
-        });
-      });
-      es.addEventListener('message.created', (e) => {
-        const p = data(e as MessageEvent);
-        if (p.message?.id) upsertMessage({ ...p.message, content: '', streaming: true });
-      });
-      es.addEventListener('text.delta', (e) => {
-        const p = data(e as MessageEvent);
-        setMessages((cur) => {
-          const m = cur[p.message_id] || { id: p.message_id, role: 'assistant', content: '', parts: [], run_id: runId, created_at: new Date().toISOString() };
-          return { ...cur, [p.message_id]: { ...m, content: m.content + (p.delta || ''), streaming: true } as Message };
-        });
-      });
-      es.addEventListener('message.completed', (e) => {
-        const p = data(e as MessageEvent);
-        upsertMessage({ id: p.message_id, content: p.content, parts: p.parts || [], tier: p.tier, model_id: p.model_id, cost_usd: p.cost_usd, streaming: false });
-      });
-      es.addEventListener('card.created', (e) => upsertCard(data(e as MessageEvent).card));
-      es.addEventListener('card.updated', (e) => upsertCard(data(e as MessageEvent).card));
-      es.addEventListener('document.ready', (e) => {
-        const d = data(e as MessageEvent).document;
-        if (d?.id) setDocs((cur) => ({ ...cur, [d.id]: d }));
-      });
-      es.addEventListener('cost.update', (e) => {
-        const p = data(e as MessageEvent);
-        patchRun(runId, (r) => ({ ...r, cost: p.run_cost_usd }));
-        if (p.conversation_cost_usd !== undefined) setConvCost(p.conversation_cost_usd);
-      });
-      es.addEventListener('proxy.error', () => patchRun(runId, (r) => ({ ...r, connection: 'error' })));
-    },
-    [load, patchRun, upsertCard, upsertMessage],
-  );
-
-  useEffect(() => {
-    api<{ chatUnlocked: boolean }>('/api/knowledge/status').then((s) => setLocked(!s.chatUnlocked)).catch(() => {});
-    load().then((d) => {
-      // Re-attach to every non-terminal run (reload / new tab).
-      for (const r of d?.active_runs || []) {
-        patchRun(r.id, (x) => ({ ...x, status: r.status }));
-        subscribe(r.id, r.status);
-      }
-    });
-    const srcs = sources.current;
-    return () => {
-      for (const es of Object.values(srcs)) es.close();
-      sources.current = {};
-    };
-  }, [load, subscribe, patchRun]);
-
-  // ---------------------------------------------------------------- timeline
-  const cardsInParts = useMemo(() => {
-    const s = new Set<string>();
-    for (const m of Object.values(messages)) for (const p of m.parts || []) if (p?.type === 'card' && p.card_id) s.add(p.card_id);
-    return s;
-  }, [messages]);
-  const timeline = useMemo(() => {
-    const items: { at: string; kind: 'message' | 'card'; id: string }[] = [
-      ...Object.values(messages).map((m) => ({ at: m.created_at, kind: 'message' as const, id: m.id })),
-      ...Object.values(cards).filter((c) => !cardsInParts.has(c.id)).map((c) => ({ at: c.created_at, kind: 'card' as const, id: c.id })),
-    ];
-    return items.sort((a, b) => a.at.localeCompare(b.at));
-  }, [messages, cards, cardsInParts]);
-
-  const [pickerFiles, setPickerFiles] = useState<PickerFile[]>([]);
-  useEffect(() => {
-    api<{ groups: { tag: string; files: PickerFile[] }[] }>('/api/picker')
-      .then((r) => setPickerFiles(r.groups.flatMap((g) => g.files)))
-      .catch(() => {});
-  }, []);
-
-  const liveRuns = Object.values(runs);
-  const blockingRun = liveRuns.find((r) => BLOCKING.includes(r.status));
-  const viewDoc = search.get('doc');
-
-  if (loadError) return <p role="alert">{loadError}</p>;
-
-  return (
-    <>
-      <h1>{title}</h1>
-      <p>
-        Conversation cost: {usd(convCost, 4)} {conversationId && <Link href="/history">· History</Link>}
-      </p>
-
-      {locked && (
-        <p role="alert">
-          Chat is locked: add and analyse at least one reference estimate first. <Link href="/setup">Go to setup →</Link>
-        </p>
-      )}
-
-      <ol aria-label="Messages">
-        {timeline.map((t) =>
-          t.kind === 'message' ? (
-            <li key={t.id}>
-              <MessageView m={messages[t.id]} cards={cards} onCard={upsertCard} pickerFiles={pickerFiles} />
-            </li>
-          ) : (
-            <li key={t.id}>
-              <CardView card={cards[t.id]} onCard={upsertCard} pickerFiles={pickerFiles} />
-            </li>
-          ),
-        )}
-      </ol>
-
-      {liveRuns.filter((r) => r.stepOrder.length > 0 || !TERMINAL.includes(r.status)).map((r) => (
-        <RunPanel key={r.id} run={r} />
-      ))}
-
-      {Object.values(docs).length > 0 && (
-        <section>
-          <h2>Documents</h2>
-          <ul>
-            {Object.values(docs).map((d) => (
-              <li key={d.id}>
-                {d.name} — <a href={`/api/documents/${d.id}/download`}>Download</a> · <Link href={`?doc=${d.id}`}>View</Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      {viewDoc && (
-        <DocViewer
-          key={`${viewDoc}:${search.get('sheet')}:${search.get('row')}`}
-          kind="document"
-          id={viewDoc}
-          initialSheet={search.get('sheet') || undefined}
-          initialRow={search.get('row') ? Number(search.get('row')) : undefined}
-        />
-      )}
-
-      {locked === false && (
-        <Composer
-          conversationId={conversationId}
-          pickerFiles={pickerFiles}
-          busyRun={blockingRun}
-          onSent={(convId, message, run) => {
-            if (!conversationId) {
-              router.push(`/chat/${convId}`);
-              return;
-            }
-            upsertMessage(message);
-            patchRun(run.id, (x) => ({ ...x, status: run.status }));
-            subscribe(run.id, run.status);
-          }}
-        />
-      )}
-    </>
-  );
-}
-
-function RunPanel({ run }: { run: LiveRun }) {
-  async function stop() {
-    await api(`/api/runs/${run.id}/stop`, { method: 'POST' }).catch((e) => alert(e.message));
-  }
+/**
+ * A step belongs to the first assistant message of its run created after the step started; later steps (no
+ * newer message yet) belong to the run's last message, or stand alone while the run has no message.
+ */
+function anchorSteps(run: LiveRun, runMsgs: ChatMessage[]): { byMessage: Record<string, Segment>; tail: Segment | null } {
   const steps = run.stepOrder.map((id) => run.steps[id]).filter(Boolean);
-  return (
-    <section aria-label="Run progress">
-      <p>
-        Run {run.status}
-        {run.error && <> — {run.error}</>}
-        {run.cost !== undefined && <> · {usd(run.cost, 4)}</>}
-        {run.connection === 'error' && <> · reconnecting…</>}{' '}
-        {!TERMINAL.includes(run.status) && <button type="button" onClick={stop}>Stop</button>}
-      </p>
-      <ul>
-        {steps.map((s) => (
-          <li key={s.step_id}>
-            {s.state === 'done' ? '✓' : '…'} {s.label}
-            {s.total ? <> ({s.done ?? 0}/{s.total}) <progress max={s.total} value={s.done ?? 0} /></> : null}
-            {s.summary && <> — {s.summary}</>}
-            {s.warns.length > 0 && (
-              <ul>
-                {s.warns.map((w, i) => (
-                  <li key={i}>
-                    ⚠ {w.message}
-                    {w.rows?.length ? <> ({w.rows.map((r) => `${r.sheet}!${r.row}`).join(', ')})</> : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
+  const byMessage: Record<string, Segment> = {};
+  let tail: Segment | null = null;
+  if (!steps.length) return { byMessage, tail };
+  const msgs = [...runMsgs].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const lastKey = msgs.length ? msgs[msgs.length - 1].id : null;
+  const groups = new Map<string | null, Step[]>();
+  for (const st of steps) {
+    const after = msgs.find((m) => Date.parse(m.created_at) >= st.startedAt - 50);
+    const key = after ? after.id : lastKey;
+    groups.set(key, [...(groups.get(key) || []), st]);
+  }
+  const active = !TERMINAL.includes(run.status);
+  const lastStatus: StepsStatus = run.status === 'waiting' || run.status === 'paused_cost' ? 'waiting'
+    : active ? 'running' : run.status === 'cancelled' ? 'cancelled' : run.status === 'failed' ? 'failed' : 'done';
+  const keys = [...groups.keys()];
+  for (const [key, list] of groups) {
+    const isLast = key === lastKey;
+    // The run's own start / finish times bound its first / last segment (steps may be instantaneous).
+    const runStart = run.started_at ? Date.parse(run.started_at) : NaN;
+    const runEnd = run.finished_at && !active ? Date.parse(run.finished_at) : NaN;
+    let startedAt = Math.min(...list.map((x) => x.startedAt));
+    let endedAt = Math.max(...list.map((x) => x.endedAt ?? x.startedAt));
+    if (key === keys[0] && runStart < startedAt) startedAt = runStart;
+    if (isLast && runEnd > endedAt) endedAt = runEnd;
+    const seg: Segment = { runId: run.id, steps: list, status: isLast ? lastStatus : 'done', startedAt, endedAt };
+    if (key) byMessage[key] = seg;
+    else tail = seg;
+  }
+  return { byMessage, tail };
 }
 
-/** Line breaks without CSS (the design import will replace this). */
-function Lines({ text }: { text: string }) {
-  const lines = String(text ?? '').split('\n');
-  return (
-    <p>
-      {lines.map((l, i) => (
-        <span key={i}>
-          {l}
-          {i < lines.length - 1 && <br />}
-        </span>
-      ))}
-    </p>
-  );
+function firstOfNextMonth(): string {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth() + 1, 1).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
 }
 
-function MessageView({ m, cards, onCard, pickerFiles }: { m: Message; cards: Record<string, Card>; onCard: (c: Card) => void; pickerFiles: PickerFile[] }) {
-  const parts = (m.parts || []) as any[];
-  const hasTextPart = parts.some((p) => p?.type === 'text');
-  return (
-    <article aria-label={`${m.role} message`}>
-      <p>
-        <b>{m.role === 'user' ? 'You' : 'Agent'}</b>
-        {m.tier && <small> · {m.tier}</small>}
-        {m.cost_usd !== null && m.cost_usd !== undefined && m.role === 'assistant' && <small> · {usd(m.cost_usd, 4)}</small>}
-        {m.streaming && <small> · typing…</small>}
-      </p>
-      {(m.streaming || !hasTextPart) && m.content && <Lines text={m.content} />}
-      {!m.streaming &&
-        parts.map((p, i) => {
-          if (p?.type === 'text') return <Lines key={i} text={p.text} />;
-          if (p?.type === 'chip' && p.kind === 'row')
-            return (
-              <a key={i} href={`?doc=${p.document_id}&sheet=${encodeURIComponent(p.sheet)}&row=${p.row}`}>
-                [{p.label || `${p.sheet}!${p.row}`}]{' '}
-              </a>
-            );
-          if (p?.type === 'chip' && p.kind === 'file')
-            return (
-              <Link key={i} href={`/knowledge/${p.file_id}`}>
-                [{p.label || 'file'}]{' '}
-              </Link>
-            );
-          if (p?.type === 'card' && cards[p.card_id]) return <CardView key={i} card={cards[p.card_id]} onCard={onCard} pickerFiles={pickerFiles} />;
-          if (p?.type === 'steps') return <pre key={i}>{JSON.stringify(p.steps ?? p, null, 1)}</pre>;
-          return null;
-        })}
-    </article>
-  );
-}
-
-function Composer({
-  conversationId,
-  pickerFiles,
-  busyRun,
-  onSent,
-}: {
-  conversationId: string | null;
-  pickerFiles: PickerFile[];
-  busyRun?: LiveRun;
-  onSent: (conversationId: string, message: any, run: any) => void;
-}) {
-  const [text, setText] = useState('');
-  const [attachments, setAttachments] = useState<{ id: string; original_name: string }[]>([]);
-  const [refs, setRefs] = useState<PickerFile[]>([]);
-  const [picker, setPicker] = useState(false);
-  const [hint, setHint] = useState<string>('');
-  const [budget, setBudget] = useState<{ state: string; action: string; blocked: boolean; fast_only: boolean; message: string | null } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
+export function ChatView({ conversationId }: { conversationId: string }) {
+  const { mobile, refreshConversations } = useShell();
+  const conv = useConversation(conversationId, { onRunEnd: refreshConversations });
+  const { messages, cards, docs, runs, uploads, references, convCost, loadError } = conv;
+  const viewer = useDocViewer();
+  const composer = useRef<ComposerHandle>(null);
+  const floatComposer = useRef<ComposerHandle>(null);
+  const [budget, setBudget] = useState<Budget | null>(null);
+  const [pickerFiles, setPickerFiles] = useState<Record<string, FileRef>>({});
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [floatSentAt, setFloatSentAt] = useState<string | null>(null);
 
   useEffect(() => {
-    api<{ text: string }>('/api/composer-hint').then((h) => setHint(h.text)).catch(() => {});
-    api('/api/budget/status').then(setBudget).catch(() => {});
+    api<Budget>('/api/budget/status').then(setBudget).catch(() => {});
+    loadPicker().then((gs) => setPickerFiles(Object.fromEntries(gs.flatMap((g) => g.files).map((f) => [f.id, f]))));
+  }, []);
+  const blocked = !!budget?.blocked;
+
+  // ------------------------------------------------------------------ viewer
+  const files = useMemo(() => ({ ...pickerFiles, ...references }), [pickerFiles, references]);
+  const openDocument = useCallback<ChatCtx['openDocument']>((docId, jump, fallbackName) => {
+    const d = docs[docId];
+    viewer.open(
+      { source: 'document', id: docId, name: d?.name || fallbackName || 'Estimate.xlsx', language: d?.language, subtitle: `Generated by the agent · ${fmtWhen(d?.updated_at || d?.created_at)}` },
+      jump && jump.row ? { sheet: jump.sheet ?? undefined, row: jump.row } : undefined,
+    );
+  }, [docs, viewer]);
+  const openFile = useCallback<ChatCtx['openFile']>((fileId, name, jump) => {
+    const f = files[fileId];
+    viewer.open(
+      { source: 'file', id: fileId, name: f?.original_name || name || 'File', language: f?.language, subtitle: 'Knowledge base' },
+      jump && jump.row ? { sheet: jump.sheet ?? undefined, row: jump.row } : undefined,
+    );
+  }, [files, viewer]);
+  const openUpload = useCallback((id: string, name: string) => {
+    viewer.open({ source: 'upload', id, name, subtitle: 'Attached to this chat' });
+  }, [viewer]);
+  const openRef = useCallback((d: DocRef) => viewer.open(d), [viewer]);
+
+  const askDoc = useCallback((d: DocRef) => {
+    const chip: ComposerChip = {
+      key: `${d.source}:${d.id}`, source: d.source, id: d.id, name: d.name, language: d.language,
+      role: d.source === 'document' ? 'Estimate' : d.source === 'file' ? 'Reference' : uploadRole(d.name),
+    };
+    composer.current?.addChip(chip);
+    floatComposer.current?.addChip(chip);
   }, []);
 
-  const paused = !!budget && budget.state === 'over' && budget.action === 'pause';
+  // ------------------------------------------------------------------ timeline
+  const blockingRun = Object.values(runs).find((r) => BLOCKING.includes(r.status));
+  const sorted = useMemo(
+    () => Object.values(messages).sort((a, b) => a.created_at.localeCompare(b.created_at) || (a.role === b.role ? 0 : a.role === 'user' ? -1 : 1)),
+    [messages],
+  );
+  const latestDocId = useMemo(() => {
+    const ds = Object.values(docs).sort((a, b) => String(a.created_at ?? '').localeCompare(String(b.created_at ?? '')));
+    return ds.length ? ds[ds.length - 1].id : undefined;
+  }, [docs]);
+  const language = useMemo(() => {
+    const d = latestDocId ? docs[latestDocId] : undefined;
+    return d?.language || Object.values(references).find((f) => f.language)?.language || null;
+  }, [docs, latestDocId, references]);
 
-  async function attach(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files || []);
-    for (const f of files) {
-      const fd = new FormData();
-      fd.set('file', f);
-      if (conversationId) fd.set('conversation_id', conversationId);
-      try {
-        const r = await api<{ upload: { id: string; original_name: string } }>('/api/uploads', { method: 'POST', body: fd });
-        setAttachments((a) => [...a, r.upload]);
-      } catch (err) {
-        setError(`${f.name}: ${(err as Error).message}`);
-      }
+  const segments = useMemo(() => {
+    const byMessage: Record<string, Segment> = {};
+    const tails: Segment[] = [];
+    for (const r of Object.values(runs)) {
+      const res = anchorSteps(r, sorted.filter((m) => m.role === 'assistant' && m.run_id === r.id));
+      Object.assign(byMessage, res.byMessage);
+      if (res.tail) tails.push(res.tail);
     }
-    e.target.value = '';
-  }
+    return { byMessage, tails };
+  }, [runs, sorted]);
 
-  function onChange(v: string) {
-    setText(v);
-    if (/(^|\s)\/$/.test(v)) setPicker(true);
-  }
+  const cardsFor = useMemo(() => {
+    const inParts = new Set<string>();
+    const out: Record<string, Card[]> = {};
+    for (const m of sorted) {
+      const list: Card[] = [];
+      for (const p of m.parts || []) {
+        const id = (p as { card_id?: string }).card_id;
+        if (p.type === 'card' && id && cards[id]) { list.push(cards[id]); inParts.add(id); }
+      }
+      out[m.id] = list;
+    }
+    const orphans: Card[] = [];
+    for (const c of Object.values(cards)) {
+      if (inParts.has(c.id)) continue;
+      if (c.message_id && out[c.message_id]) out[c.message_id].push(c);
+      else orphans.push(c);
+    }
+    return { out, orphans };
+  }, [sorted, cards]);
 
-  function pick(f: PickerFile) {
-    setRefs((r) => (r.some((x) => x.id === f.id) ? r : [...r, f]));
-    setText((t) => t.replace(/(^|\s)\/$/, '$1'));
-    setPicker(false);
-  }
-
-  async function send(e: React.FormEvent) {
-    e.preventDefault();
-    if (!text.trim()) return;
-    setBusy(true);
-    setError(null);
+  const retry = useCallback(async (runId: string | null) => {
+    const um = sorted.find((m) => m.role === 'user' && m.run_id === runId);
+    if (!um) return;
+    setSendError(null);
     try {
-      let convId = conversationId;
-      if (!convId) {
-        const c = await api<{ conversation: { id: string } }>('/api/conversations', { method: 'POST', json: {} });
-        convId = c.conversation.id;
-      }
-      const r = await api<{ message: any; run: any }>(`/api/conversations/${convId}/messages`, {
-        method: 'POST',
-        json: { text, attachment_ids: attachments.map((a) => a.id), reference_ids: refs.map((f) => f.id) },
+      const r = await api<{ message: ChatMessage; run: { id: string; status: string } }>(`/api/conversations/${conversationId}/messages`, {
+        method: 'POST', json: { text: um.content, attachment_ids: um.attachment_ids || [], reference_ids: um.reference_ids || [] },
       });
-      setText('');
-      setAttachments([]);
-      setRefs([]);
-      onSent(convId, r.message, r.run);
-    } catch (err) {
-      const b = err instanceof ApiError ? err.body : {};
-      if (b.error === 'budget_paused') setError('The monthly budget is used up; chat is paused.');
-      else if (b.error === 'chat_locked') setError('Chat is locked until a reference estimate is analysed.');
-      else if (b.error === 'run_active') setError('Wait for the current answer to finish (or stop it).');
-      else setError((err as Error).message);
-    } finally {
-      setBusy(false);
+      conv.onSent(r.message, r.run);
+    } catch (e) {
+      setSendError(sendErrorText(e));
     }
-  }
+  }, [sorted, conversationId, conv]);
 
-  const disabled = paused || busy || !!busyRun;
-  return (
-    <form onSubmit={send} aria-label="Composer">
-      {budget?.message && <p role="status">{budget.message}</p>}
-      {budget?.fast_only && <p role="status">Budget reached: answers use the fast model only.</p>}
-      {refs.length > 0 && (
-        <p>
-          References:{' '}
-          {refs.map((f) => (
-            <span key={f.id}>
-              [{f.original_name} <button type="button" onClick={() => setRefs((r) => r.filter((x) => x.id !== f.id))} aria-label={`Remove ${f.original_name}`}>×</button>]{' '}
-            </span>
-          ))}
-        </p>
-      )}
-      {attachments.length > 0 && (
-        <p>
-          Attachments:{' '}
-          {attachments.map((a) => (
-            <span key={a.id}>
-              [{a.original_name} <button type="button" onClick={() => setAttachments((x) => x.filter((y) => y.id !== a.id))} aria-label={`Remove ${a.original_name}`}>×</button>]{' '}
-            </span>
-          ))}
-        </p>
-      )}
-      <p>
-        <textarea
-          value={text}
-          onChange={(e) => onChange(e.target.value)}
-          rows={4}
-          cols={80}
-          disabled={paused}
-          placeholder={paused ? 'Chat is paused: monthly budget reached' : 'Ask, or attach a blank to fill. Type / to pick reference files.'}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setPicker(false);
-          }}
-        />
-      </p>
-      {picker && (
-        <div role="listbox" aria-label="Pick reference files">
-          {pickerFiles.length === 0 && <p>No analysed files.</p>}
-          {Object.entries(
-            pickerFiles.reduce<Record<string, PickerFile[]>>((acc, f) => ((acc[f.tag] ||= []).push(f), acc), {}),
-          ).map(([tag, files]) => (
-            <div key={tag}>
-              <b>{tag}</b>
-              <ul>
-                {files.map((f) => (
-                  <li key={f.id}>
-                    <button type="button" role="option" aria-selected={refs.some((r) => r.id === f.id)} onClick={() => pick(f)}>
-                      {f.original_name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-          <button type="button" onClick={() => setPicker(false)}>Close</button>
+  const stepsNode = (seg: Segment | undefined) =>
+    seg ? (
+      <StepsBlock key={`steps-${seg.runId}`} steps={seg.steps} status={seg.status} startedAt={seg.startedAt} endedAt={seg.endedAt}
+        docId={Object.values(docs).find((d) => d.run_id === seg.runId)?.id ?? latestDocId}
+        onStop={() => conv.stop(seg.runId).catch((e) => setSendError((e as Error).message))} />
+    ) : null;
+
+  const items: { at: string; order: number; node: ReactNode }[] = [];
+  for (const m of sorted) {
+    // An answer that ended empty (its run failed or was stopped before any text) shows nothing.
+    if (m.role === 'assistant' && !m.streaming && !m.content && !(m.parts || []).length && !(cardsFor.out[m.id] || []).length && !segments.byMessage[m.id]) continue;
+    if (m.role === 'user') items.push({ at: m.created_at, order: 0, node: <UserMessage key={m.id} m={m} uploads={uploads} references={references} /> });
+    else
+      items.push({
+        at: m.created_at, order: 2,
+        node: <AgentMessage key={m.id} m={m} cards={cardsFor.out[m.id] || []} steps={stepsNode(segments.byMessage[m.id])} latestDocId={latestDocId}
+          onRetry={m.run_id ? () => retry(m.run_id) : undefined} />,
+      });
+  }
+  for (const seg of segments.tails) {
+    const r = runs[seg.runId];
+    items.push({ at: r?.created_at || new Date(seg.startedAt).toISOString(), order: 1, node: <div key={`tail-${seg.runId}`}>{stepsNode(seg)}</div> });
+  }
+  for (const c of cardsFor.orphans)
+    items.push({ at: c.created_at, order: 2, node: <AgentMessage key={`card-${c.id}`} m={{ id: c.id, run_id: c.run_id, role: 'assistant', content: '', parts: [], created_at: c.created_at }} cards={[c]} showFooter={false} /> });
+  // A run that is queued / starting and has shown nothing yet: a quiet "working" line.
+  for (const r of Object.values(runs)) {
+    if (!BLOCKING.includes(r.status) || r.stepOrder.length || sorted.some((m) => m.role === 'assistant' && m.run_id === r.id)) continue;
+    items.push({ at: r.created_at || new Date().toISOString(), order: 1, node: <StepsBlock key={`q-${r.id}`} steps={[]} status="running" startedAt={Date.parse(r.created_at || '') || Date.now()} onStop={() => conv.stop(r.id)} /> });
+  }
+  // A failed run says so (with Retry on its answer, or here when it produced none).
+  for (const r of Object.values(runs)) {
+    if (r.status !== 'failed') continue;
+    const last = sorted.filter((m) => m.run_id === r.id).pop();
+    // The worker normally explains a failure in a message of its own.
+    if (sorted.some((m) => m.run_id === r.id && m.role === 'assistant' && m.content)) continue;
+    items.push({
+      at: last?.created_at || r.created_at || '', order: 3,
+      node: (
+        <div key={`fail-${r.id}`} role="alert" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 14, color: 'var(--err)' }}>
+          <span>Something went wrong{r.error ? `: ${r.error}` : ''}.</span>
+          <button type="button" className="hv-errSoft" onClick={() => retry(r.id)}
+            style={{ height: 28, padding: '0 10px', border: '1px solid var(--err)', borderRadius: 7, background: 'transparent', color: 'var(--err)', font: 'inherit', fontSize: 12.5, cursor: 'pointer' }}>Try again</button>
         </div>
-      )}
-      <p>
-        <input ref={fileInput} type="file" hidden multiple accept=".xlsx,.xls,.docx,.pdf,.txt,.csv" onChange={attach} />
-        <button type="button" onClick={() => fileInput.current?.click()} disabled={paused}>Attach</button>{' '}
-        <button type="button" onClick={() => setPicker((p) => !p)} disabled={paused}>/ References</button>{' '}
-        <button type="submit" disabled={disabled || !text.trim()}>{busy ? 'Sending…' : 'Send'}</button>{' '}
-        <small>{hint}</small>
-      </p>
-      {busyRun && <p role="status">The agent is working… you can stop it above.</p>}
-      {error && <p role="alert">{error}</p>}
-    </form>
+      ),
+    });
+  }
+  items.sort((a, b) => a.at.localeCompare(b.at) || a.order - b.order);
+
+  // ------------------------------------------------------------------ auto-scroll to the newest message
+  const scroller = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  const stick = useRef(true);
+  useEffect(() => {
+    const el = scroller.current, content = inner.current;
+    if (!el || !content) return;
+    const onScroll = () => { stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 140; };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    const ro = new ResizeObserver(() => { if (stick.current) el.scrollTop = el.scrollHeight; });
+    ro.observe(content);
+    return () => { el.removeEventListener('scroll', onScroll); ro.disconnect(); };
+  }, [conv.loaded]);
+
+  // ------------------------------------------------------------------ send
+  const send = useCallback(async (text: string, chips: ComposerChip[], fromFloat = false) => {
+    setSendError(null);
+    try {
+      const r = await postChatMessage(conversationId, text, chips);
+      stick.current = true;
+      conv.onSent(r.message, r.run);
+      if (fromFloat) setFloatSentAt(r.message.created_at);
+      refreshConversations();
+      return true;
+    } catch (e) {
+      setSendError(sendErrorText(e));
+      if (e && (e as { body?: { error?: string } }).body?.error === 'budget_paused') api<Budget>('/api/budget/status').then(setBudget).catch(() => {});
+      return false;
+    }
+  }, [conversationId, conv, refreshConversations]);
+
+  const floatReply = useMemo(() => {
+    if (!floatSentAt) return null;
+    const replies = sorted.filter((m) => m.role === 'assistant' && m.created_at >= floatSentAt);
+    return replies.length ? replies[replies.length - 1] : null;
+  }, [sorted, floatSentAt]);
+
+  const ctx: ChatCtx = useMemo(() => ({
+    docs, runs, files, openDocument, openFile, openUpload,
+    onCard: conv.upsertCard, followRun: conv.followRun, stopRun: (id: string) => { conv.stop(id).catch(() => {}); },
+  }), [docs, runs, files, openDocument, openFile, openUpload, conv.upsertCard, conv.followRun, conv]);
+
+  if (loadError)
+    return (
+      <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <header style={{ height: 56, flex: 'none', display: 'flex', alignItems: 'center', padding: '0 16px 0 6px' }}><MenuButton /></header>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24, textAlign: 'center' }}>
+          <div role="alert" style={{ fontSize: 16, fontWeight: 600 }}>{loadError}</div>
+          <Link href="/chat" style={{ fontSize: 14 }}>Start a new estimate</Link>
+        </div>
+      </main>
+    );
+
+  const placeholder = viewer.isOpen ? 'Ask about this document…' : 'Reply to the agent. Type / to add reference files.';
+  const composerNode = (
+    <Composer ref={composer} conversationId={conversationId} placeholder={placeholder} disabled={blocked} busy={!!blockingRun}
+      onSend={(t, c) => send(t, c)} onOpenDoc={openRef} error={sendError} />
+  );
+
+  return (
+    <ChatContext.Provider value={ctx}>
+      <ViewerLayout viewer={viewer} onAsk={askDoc} railLabel="Chat"
+        renderAsk={() => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {floatReply && (
+              <div className="scroll-thin" style={{ maxHeight: 260, overflow: 'auto', padding: '14px 16px', border: '1px solid var(--line)', borderRadius: 14, background: 'var(--panel)' }}>
+                <AgentMessage m={floatReply} cards={cardsFor.out[floatReply.id] || []} latestDocId={latestDocId} showFooter={false} />
+              </div>
+            )}
+            <Composer ref={floatComposer} conversationId={conversationId} placeholder="Ask about this document" disabled={blocked} busy={!!blockingRun}
+              onSend={(t, c) => send(t, c, true)} onOpenDoc={openRef} error={sendError} autoFocus />
+          </div>
+        )}>
+        <main style={{ flex: 1, minWidth: 0, minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <header style={{ height: 56, flex: 'none', display: 'flex', alignItems: 'center', gap: 10, padding: `0 16px 0 ${mobile ? '6px' : '20px'}` }}>
+            <MenuButton />
+            <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontWeight: 500, fontSize: 14.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{conv.title || (conv.loaded ? 'New estimate' : '')}</span>
+              <LangTag lang={language} />
+            </div>
+            <div style={{ flex: 1 }} />
+            {!mobile && (
+              <span style={{ fontSize: 12, color: 'var(--ink3)', whiteSpace: 'nowrap' }}>
+                Conversation cost <span style={{ fontFamily: 'var(--mono)' }}>{fmtUsd(convCost, convCost > 0 && convCost < 0.01 ? 4 : 2)}</span>
+              </span>
+            )}
+          </header>
+          <div ref={scroller} className="scroll-thin" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+            <div ref={inner} style={{ maxWidth: 760, margin: '0 auto', padding: '12px 20px 32px', display: 'flex', flexDirection: 'column', gap: 28 }}>
+              {items.map((i) => i.node)}
+            </div>
+          </div>
+          <div style={{ flex: 'none', padding: '0 16px 16px' }}>
+            <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {blocked && budget && (
+                <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', border: '1px solid var(--err)', borderRadius: 12, background: 'var(--errSoft)', fontSize: 13.5, flexWrap: mobile ? 'wrap' : 'nowrap' }}>
+                  <span style={{ width: 20, height: 20, flex: 'none', borderRadius: '50%', background: 'var(--err)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>!</span>
+                  <span style={{ flex: 1, minWidth: 200 }}>
+                    Monthly AI budget reached ({fmtUsd(budget.spent_usd, 0)} of {fmtUsd(budget.amount_usd, 0)}). New messages are paused until {firstOfNextMonth()} or until an admin raises the budget. You can still open and download estimates.
+                  </span>
+                  <Link href="/settings/usage" style={{ flex: 'none', fontWeight: 600 }}>Budget settings</Link>
+                </div>
+              )}
+              {composerNode}
+            </div>
+          </div>
+        </main>
+      </ViewerLayout>
+    </ChatContext.Provider>
   );
 }

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('eaa-theme')||'light'}catch(e){}</script>
+<style>
+:root,[data-theme=light]{--bg:#fcfcfd;--side:#f5f6f8;--panel:#ffffff;--sunk:#eef0f3;--bubble:#eceff4;--line:#e1e4e9;--line2:#eceef2;--ink:#15181c;--ink2:#4a525c;--ink3:#737b86;--acc:#1f5eff;--accSoft:#e7eeff;--accInk:#1747c9;--ok:#177a43;--okSoft:#e3f3e9;--warn:#9a5700;--warnSoft:#fcefd8;--err:#bf3228;--errSoft:#fbe6e4;--web:#0d6e84;--webSoft:#dff1f5;--hl:#fff1b3;--hl2:#fff8d6;color-scheme:light}
+[data-theme=dark]{--bg:#141619;--side:#101214;--panel:#1a1d21;--sunk:#23272c;--bubble:#262a30;--line:#2d3238;--line2:#23272c;--ink:#e7e9ec;--ink2:#adb4bc;--ink3:#7f8791;--acc:#4a7dff;--accSoft:#1b2851;--accInk:#9ab7ff;--ok:#5cc98a;--okSoft:#14301f;--warn:#f0b04a;--warnSoft:#3a2a10;--err:#f07a70;--errSoft:#3d1a18;--web:#55c6da;--webSoft:#0f2d33;--hl:#4a3f12;--hl2:#2e2912;color-scheme:dark}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--accInk)}a:hover{color:var(--acc)}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+<title>Estimates AI Agent · All pages</title></helmet>
+<div style="min-height:100vh;background:var(--bg);color:var(--ink);">
+  <div style="max-width:1080px;margin:0 auto;padding:48px 24px 64px;display:flex;flex-direction:column;gap:36px;">
+    <div style="display:flex;align-items:center;gap:14px;">
+      <span style="width:40px;height:40px;border-radius:10px;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:600;">E</span>
+      <div style="display:flex;flex-direction:column;gap:2px;flex:1;"><h1 style="margin:0;font-size:26px;font-weight:600;letter-spacing:-0.01em;">Estimates AI Agent</h1><span style="font-size:14px;color:var(--ink2);">Every page and state. Each link opens a real, clickable page.</span></div>
+      <button onClick="{{ toggleTheme }}" style="height:36px;padding:0 14px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--ink);font:inherit;font-size:13px;cursor:pointer;">{{ themeLabel }}</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;align-items:start;">
+      <sc-for list="{{ groups }}" as="g" hint-placeholder-count="6">
+        <div style="display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden;">
+          <div style="padding:14px 18px 10px;font-size:12.5px;font-weight:600;color:var(--ink3);">{{ g.title }}</div>
+          <sc-for list="{{ g.items }}" as="i" hint-placeholder-count="3">
+            <a href="{{ i.href }}" style="display:flex;align-items:baseline;gap:10px;padding:10px 18px;border-top:1px solid var(--line2);text-decoration:none;color:var(--ink);" style-hover="background:var(--side);">
+              <span style="font-size:14.5px;font-weight:500;">{{ i.label }}</span>
+              <span style="flex:1;font-size:12.5px;color:var(--ink3);">{{ i.note }}</span>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink3);">{{ i.path }}</span>
+            </a>
+          </sc-for>
+        </div>
+      </sc-for>
+    </div>
+    <div style="font-size:13px;color:var(--ink3);">Earlier operator-console exploration: <a href="v1/Estimates AI Agent v1.dc.html">v1</a></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const G = [
+  ['Sign in', [['Sign in', 'login.dc.html', 'with forgot password'], ['Sign in, wrong password', 'login.dc.html?error=1', ''], ['Set password (invite)', 'set-password.dc.html', ''], ['Set password (reset)', 'set-password.dc.html?reset=1', ''], ['Expired link', 'set-password.dc.html?expired=1', '']]],
+  ['First run', [['Setup, empty (chat locked)', 'setup.dc.html?empty=1', ''], ['Setup, files analysing + one failed', 'setup.dc.html', 'live progress'], ['New chat, locked', 'chat-new.dc.html?locked=1', '']]],
+  ['Chat', [['New estimate', 'chat-new.dc.html', 'two ways to start'], ['Finished estimate, Q&A, email sent', 'chat.dc.html?s=result', 'main flow'], ['Agent working (long run)', 'chat.dc.html?s=working', 'live counters'], ['Permission pending', 'chat.dc.html?s=permission', 'try both buttons'], ['Structure proposal', 'chat.dc.html?s=worklist', 'from a work list'], ['Vague work list', 'chat.dc.html?s=vague', 'clarifying questions'], ['Web search found nothing', 'chat.dc.html?s=nothing', ''], ['Email failed', 'chat.dc.html?s=emailfail', 'retry'], ['Budget exceeded', 'chat.dc.html?s=blocked', 'composer paused']]],
+  ['Document viewer', [['Split, jumped to EL row 58', 'chat.dc.html?s=result&doc=estimate&sheet=EL&row=58', 'row inspector'], ['Full screen with chat rail', 'chat.dc.html?s=result&doc=estimate&mode=full', ''], ['PDF price list', 'chat.dc.html?s=result&doc=solar', ''], ['DOCX norms', 'chat.dc.html?s=result&doc=norms', ''], ['Failed to render', 'chat.dc.html?s=result&doc=broken', ''], ['Phone views', 'mobile.dc.html', 'chat, sheet, history']]],
+  ['Knowledge base', [['Library', 'knowledge.dc.html', 'search, filters'], ['Library, empty', 'knowledge.dc.html?empty=1', ''], ['File detail', 'knowledge-file.dc.html?f=datacenter', '5 tabs'], ['Saved numbers (editable)', 'knowledge-file.dc.html?f=datacenter&tab=numbers', ''], ['File analysis failed', 'knowledge-file.dc.html?f=broken', '']]],
+  ['History and settings', [['History', 'history.dc.html', ''], ['History, empty', 'history.dc.html?empty=1', ''], ['Usage & costs', 'settings-usage.dc.html', ''], ['Budget near limit', 'settings-usage.dc.html?b=near', ''], ['Budget exceeded', 'settings-usage.dc.html?b=over', ''], ['Model routing', 'settings-routing.dc.html', 'pipeline'], ['Profile', 'settings-profile.dc.html', 'theme'], ['Users (admin)', 'settings-users.dc.html', ''], ['Users, no access', 'settings-users.dc.html?role=estimator', '']]],
+  ['Components', [['Component set', 'components.dc.html', 'all cards and states']]],
+];
+class Component extends DCLogic {
+  state = { theme: 'light' };
+  componentDidMount() { this.setState({ theme: document.documentElement.dataset.theme || 'light' }); }
+  renderVals() {
+    return {
+      groups: G.map(([title, items]) => ({ title, items: items.map(i => ({ label: i[0], href: i[1], note: i[2], path: '/' + i[1].split('.dc.html')[0] })) })),
+      themeLabel: this.state.theme === 'dark' ? 'Light mode' : 'Dark mode',
+      toggleTheme: () => { const t = this.state.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = t; try { localStorage.setItem('eaa-theme', t); } catch (e) {} this.setState({ theme: t }); },
+    };
+  }
+}
+</script>
+</body>
+</html>

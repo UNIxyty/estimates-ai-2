@@ -9,3 +9,7 @@ web/next-env.d.ts
 web/coverage/
 *.log
 .DS_Store
+docker-compose.override.yml
+.localdata/
+**/.next-*/
+gate-estimates/

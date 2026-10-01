@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('eaa-theme')||'light'}catch(e){}</script>
+<style>
+:root,[data-theme=light]{--bg:#fcfcfd;--side:#f5f6f8;--panel:#ffffff;--sunk:#eef0f3;--bubble:#eceff4;--line:#e1e4e9;--line2:#eceef2;--ink:#15181c;--ink2:#4a525c;--ink3:#737b86;--acc:#1f5eff;--accSoft:#e7eeff;--accInk:#1747c9;--ok:#177a43;--okSoft:#e3f3e9;--warn:#9a5700;--warnSoft:#fcefd8;--err:#bf3228;--errSoft:#fbe6e4;--web:#0d6e84;--webSoft:#dff1f5;--hl:#fff1b3;--hl2:#fff8d6;color-scheme:light}
+[data-theme=dark]{--bg:#141619;--side:#101214;--panel:#1a1d21;--sunk:#23272c;--bubble:#262a30;--line:#2d3238;--line2:#23272c;--ink:#e7e9ec;--ink2:#adb4bc;--ink3:#7f8791;--acc:#4a7dff;--accSoft:#1b2851;--accInk:#9ab7ff;--ok:#5cc98a;--okSoft:#14301f;--warn:#f0b04a;--warnSoft:#3a2a10;--err:#f07a70;--errSoft:#3d1a18;--web:#55c6da;--webSoft:#0f2d33;--hl:#4a3f12;--hl2:#2e2912;color-scheme:dark}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--accInk)}a:hover{color:var(--acc)}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+<title>Knowledge base · Estimates AI Agent</title></helmet>
+<div style="height:100vh;display:flex;background:var(--bg);color:var(--ink);overflow:hidden;">
+  <dc-import name="Sidebar" active="knowledge" collapsed="{{ sideCollapsed }}" mobile="{{ mobile }}" open="{{ drawer }}" on-close="{{ closeDrawer }}" hint-size="264px,100%"></dc-import>
+  <main style="flex:1;min-width:0;overflow:auto;">
+    <div style="max-width:1080px;margin:0 auto;padding:24px 24px 48px;display:flex;flex-direction:column;gap:18px;">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}"><button onClick="{{ openDrawer }}" style="width:40px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--ink);font-size:18px;cursor:pointer;">☰</button></sc-if>
+        <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:200px;">
+          <h1 style="margin:0;font-size:24px;font-weight:600;letter-spacing:-0.01em;">Knowledge base</h1>
+          <span style="font-size:14px;color:var(--ink2);">Files the agent learns from. Priced estimates teach structure and pricing; norms and price lists fill in the numbers.</span>
+        </div>
+        <label style="height:40px;display:inline-flex;align-items:center;gap:8px;padding:0 16px;border-radius:10px;background:var(--acc);color:#fff;font-size:14px;font-weight:600;cursor:pointer;">+ Upload files<input type="file" multiple="{{ true }}" onChange="{{ onUpload }}" style="display:none;"></input></label>
+      </div>
+
+      <sc-if value="{{ empty }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:64px 24px;border:1.5px dashed var(--line);border-radius:16px;background:var(--panel);text-align:center;">
+          <div style="font-size:17px;font-weight:600;">No files yet</div>
+          <div style="max-width:440px;font-size:14px;color:var(--ink2);line-height:1.55;">Upload at least one estimate you've already priced. Until then, chat is locked because the agent has nothing to learn from.</div>
+          <a href="setup.dc.html?empty=1" style="height:40px;display:inline-flex;align-items:center;padding:0 18px;border-radius:10px;background:var(--acc);color:#fff;text-decoration:none;font-weight:600;font-size:14px;">Start setup</a>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ notEmpty }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:220px;display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);">
+            <span style="color:var(--ink3);font-size:13px;">Search</span>
+            <input value="{{ q }}" onChange="{{ onQ }}" placeholder="File name" style="flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:inherit;font-size:14px;"></input>
+          </div>
+          <select value="{{ type }}" onChange="{{ onType }}" style="height:38px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px;"><option value="">All types</option><option>Priced estimate (reference)</option><option>Hourly norms</option><option>Price list</option><option>Other</option></select>
+          <select value="{{ status }}" onChange="{{ onStatus }}" style="height:38px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px;"><option value="">All statuses</option><option>Analysed</option><option>Analysing</option><option>Failed</option></select>
+        </div>
+        <div style="border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow-x:auto;">
+          <div style="min-width:880px;">
+            <div style="display:grid;grid-template-columns:minmax(220px,2fr) 190px 60px 84px 110px 150px 84px 70px;padding:0 8px;border-bottom:1px solid var(--line);font-size:12px;font-weight:600;color:var(--ink2);">
+              <div style="padding:10px 8px;">Name</div><div style="padding:10px 8px;">Type</div><div style="padding:10px 8px;">Lang.</div><div style="padding:10px 8px;">Added</div><div style="padding:10px 8px;">Status</div><div style="padding:10px 8px;">Extracted</div><div style="padding:10px 8px;">Used in</div><div></div>
+            </div>
+            <sc-for list="{{ rows }}" as="f" hint-placeholder-count="10">
+              <a href="{{ f.href }}" style="display:grid;grid-template-columns:minmax(220px,2fr) 190px 60px 84px 110px 150px 84px 70px;align-items:center;padding:0 8px;border-bottom:1px solid var(--line2);text-decoration:none;color:var(--ink);font-size:13.5px;" style-hover="background:var(--side);">
+                <div style="padding:10px 8px;display:flex;align-items:center;gap:10px;min-width:0;"><span style="width:28px;height:32px;flex:none;border-radius:5px;background:{{ f.kindBg }};color:{{ f.kindFg }};display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:8px;font-weight:600;">{{ f.kind }}</span><span style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ f.name }}</span></div>
+                <div style="padding:10px 8px;color:var(--ink2);">{{ f.type }}</div>
+                <div style="padding:10px 8px;"><span style="display:inline-flex;align-items:center;height:17px;padding:0 5px;border:1px solid var(--line);border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:var(--ink2);">{{ f.lang }}</span></div>
+                <div style="padding:10px 8px;color:var(--ink2);">{{ f.date }}</div>
+                <div style="padding:10px 8px;"><span style="display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:11px;font-size:12px;font-weight:500;color:{{ f.sfg }};background:{{ f.sbg }};"><span style="width:6px;height:6px;border-radius:50%;background:currentColor;"></span>{{ f.status }}</span></div>
+                <div style="padding:10px 8px;color:var(--ink2);font-size:12.5px;">{{ f.extracted }}</div>
+                <div style="padding:10px 8px;color:var(--ink2);font-size:12.5px;">{{ f.used }}</div>
+                <div style="padding:10px 8px;display:flex;justify-content:flex-end;"><sc-if value="{{ f.canOpen }}" hint-placeholder-val="{{ false }}"><button onClick="{{ f.open }}" style="height:28px;padding:0 10px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink);font:inherit;font-size:12.5px;cursor:pointer;" style-hover="background:var(--sunk);">Open</button></sc-if></div>
+              </a>
+            </sc-for>
+            <sc-if value="{{ noMatch }}" hint-placeholder-val="{{ false }}"><div style="padding:28px;text-align:center;color:var(--ink3);font-size:14px;">No files match these filters.</div></sc-if>
+          </div>
+        </div>
+        <div style="font-size:12.5px;color:var(--ink3);">{{ countLabel }}</div>
+      </sc-if>
+    </div>
+  </main>
+  <sc-if value="{{ viewer }}" hint-placeholder-val="{{ false }}">
+    <div style="width:{{ viewerW }};flex:none;border-left:1px solid var(--line);display:flex;position:{{ viewerPos }};inset:0;z-index:50;">
+      <dc-import name="DocViewer" style="flex:1;min-width:0;height:100%;display:flex;" docs="{{ vDocs }}" active="{{ vActive }}" mode="{{ vMode }}" on-close="{{ closeViewer }}" on-mode="{{ setMode }}" on-ask="{{ ask }}" hint-size="100%,100%"></dc-import>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const FILES = [
+  ['data-center.xlsx', 'Priced estimate (reference)', 'DA', '12 Sep', 'Analysed', '640 prices · 598 norms', '9 estimates', 'datacenter'],
+  ['Braila 23.xlsx', 'Priced estimate (reference)', 'LV', '3 Sep', 'Analysed', '212 prices · 188 norms', '14 estimates', 'braila'],
+  ['Skolegade 14.xlsx', 'Priced estimate (reference)', 'DA', '28 Aug', 'Analysed', '402 prices · 377 norms', '6 estimates'],
+  ['Priedes iela 4.xlsx', 'Priced estimate (reference)', 'LV', '21 Aug', 'Analysed', '318 prices · 290 norms', '8 estimates'],
+  ['Tallinn retail.xlsx', 'Priced estimate (reference)', 'EN', '14 Aug', 'Analysed', '156 prices · 141 norms', '2 estimates'],
+  ['norms.docx', 'Hourly norms', 'EN', '12 Sep', 'Analysed', '46 norms', '11 estimates', 'norms'],
+  ['Stundu normas 2024.pdf', 'Hourly norms', 'LV', '2 Jul', 'Analysed', '212 norms', '17 estimates'],
+  ['Price list 2025.xlsx', 'Price list', 'LV', '5 Sep', 'Analysed', '1,840 prices', '12 estimates'],
+  ['Solar prisliste 2025.pdf', 'Price list', 'DA', '1 Sep', 'Analysed', '2,310 prices', '5 estimates', 'solar'],
+  ['Supplier prices Q3.xlsx', 'Price list', 'EN', 'Today', 'Analysing', 'In progress', '—'],
+  ['Onninen cenas 2025.pdf', 'Price list', 'LV', '18 Jun', 'Analysed', '960 prices', '7 estimates'],
+  ['Company markups.docx', 'Other', 'EN', '10 Jun', 'Analysed', '12 notes', '16 estimates'],
+  ['Tilbud_scan_2019.pdf', 'Other', 'LV', '9 Jun', 'Failed', 'Password-protected', '—', 'broken'],
+  ['cenas_old.xls', 'Price list', 'LV', '9 Jun', 'Failed', 'Excel 95 format', '—'],
+];
+const ST = { Analysed: ['var(--ok)', 'var(--okSoft)'], Analysing: ['var(--accInk)', 'var(--accSoft)'], Failed: ['var(--err)', 'var(--errSoft)'], Queued: ['var(--ink2)', 'var(--sunk)'] };
+const KIND = n => /\.pdf$/i.test(n) ? ['PDF', 'var(--err)', 'var(--errSoft)'] : /\.docx?$/i.test(n) ? ['DOCX', 'var(--accInk)', 'var(--accSoft)'] : ['XLSX', 'var(--ok)', 'var(--okSoft)'];
+class Component extends DCLogic {
+  state = { q: '', type: '', status: '', mobile: false, drawer: false, empty: false, extra: [], viewer: null };
+  componentDidMount() { this.setState({ mobile: window.innerWidth < 760, empty: new URLSearchParams(location.search).has('empty') }); this._rs = () => this.setState({ mobile: window.innerWidth < 760 }); window.addEventListener('resize', this._rs); }
+  componentWillUnmount() { window.removeEventListener('resize', this._rs); }
+  renderVals() {
+    const s = this.state, all = [...s.extra, ...FILES], q = s.q.toLowerCase();
+    const rows = all.filter(f => (!q || f[0].toLowerCase().includes(q)) && (!s.type || f[1] === s.type) && (!s.status || f[4] === s.status));
+    const v = s.viewer, mode = v ? (s.mobile ? 'sheet' : v.mode) : 'split';
+    return {
+      mobile: s.mobile, drawer: s.drawer, openDrawer: () => this.setState({ drawer: true }), closeDrawer: () => this.setState({ drawer: false }), sideCollapsed: v ? true : undefined,
+      empty: s.empty, notEmpty: !s.empty, q: s.q, type: s.type, status: s.status,
+      onQ: e => this.setState({ q: e.target.value }), onType: e => this.setState({ type: e.target.value }), onStatus: e => this.setState({ status: e.target.value }),
+      onUpload: e => { const ex = [...e.target.files].map(f => [f.name, /norm/i.test(f.name) ? 'Hourly norms' : 'Priced estimate (reference)', '—', 'Today', 'Queued', 'Waiting', '—']); this.setState({ extra: [...ex, ...s.extra], empty: false }); e.target.value = ''; },
+      rows: rows.map(f => { const k = KIND(f[0]); return { name: f[0], type: f[1], lang: f[2], date: f[3], status: f[4], extracted: f[5], used: f[6], sfg: ST[f[4]][0], sbg: ST[f[4]][1], kind: k[0], kindFg: k[1], kindBg: k[2],
+        href: 'knowledge-file.dc.html?f=' + (f[7] || 'datacenter'), canOpen: !!f[7], open: e => { e.preventDefault(); e.stopPropagation(); this.setState({ viewer: { docs: [f[7]], active: f[7], mode: 'split' } }); } }; }),
+      noMatch: !rows.length, countLabel: `${rows.length} of ${all.length} files`,
+      viewer: !!v, vDocs: v ? v.docs : [], vActive: v ? v.active : null, vMode: mode,
+      viewerW: mode === 'full' || s.mobile ? '100%' : '56%', viewerPos: mode === 'full' || s.mobile ? 'fixed' : 'relative',
+      closeViewer: () => this.setState({ viewer: null }), setMode: m => this.setState({ viewer: { ...v, mode: m } }),
+      ask: d => { location.href = 'chat-new.dc.html'; },
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -164,6 +164,15 @@ def write_rows(src_path: str, dst_path: str, layouts: dict[str, SheetLayout], ro
                 continue
             cell.value = round(float(value), 4 if meaning in ("norm_h", "total_norm_h") else 2)
             rep.written += 1
+        # A viewer edit may change the quantity; a fill never touches quantities.
+        q_letter = lay.cols.get("qty")
+        if overwrite_own and q_letter and r.get("qty") is not None:
+            coord = f"{q_letter}{r['row_idx']}"
+            cell = ws[coord]
+            if coord not in merged and not _is_formula(cell.value) and (cell.value in (None, "") or isinstance(cell.value, (int, float))):
+                if cell.value != r["qty"]:
+                    cell.value = float(r["qty"])
+                    rep.written += 1
         src_letter = lay.cols.get("source")
         if src_letter:
             coord = f"{src_letter}{r['row_idx']}"

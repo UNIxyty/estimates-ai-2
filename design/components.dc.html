@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('eaa-theme')||'light'}catch(e){}</script>
+<style>
+:root,[data-theme=light]{--bg:#fcfcfd;--side:#f5f6f8;--panel:#ffffff;--sunk:#eef0f3;--bubble:#eceff4;--line:#e1e4e9;--line2:#eceef2;--ink:#15181c;--ink2:#4a525c;--ink3:#737b86;--acc:#1f5eff;--accSoft:#e7eeff;--accInk:#1747c9;--ok:#177a43;--okSoft:#e3f3e9;--warn:#9a5700;--warnSoft:#fcefd8;--err:#bf3228;--errSoft:#fbe6e4;--web:#0d6e84;--webSoft:#dff1f5;--hl:#fff1b3;--hl2:#fff8d6;color-scheme:light}
+[data-theme=dark]{--bg:#141619;--side:#101214;--panel:#1a1d21;--sunk:#23272c;--bubble:#262a30;--line:#2d3238;--line2:#23272c;--ink:#e7e9ec;--ink2:#adb4bc;--ink3:#7f8791;--acc:#4a7dff;--accSoft:#1b2851;--accInk:#9ab7ff;--ok:#5cc98a;--okSoft:#14301f;--warn:#f0b04a;--warnSoft:#3a2a10;--err:#f07a70;--errSoft:#3d1a18;--web:#55c6da;--webSoft:#0f2d33;--hl:#4a3f12;--hl2:#2e2912;color-scheme:dark}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--accInk)}a:hover{color:var(--acc)}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+<title>Components · Estimates AI Agent</title></helmet>
+<div style="min-height:100vh;background:var(--bg);color:var(--ink);">
+  <header style="position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:12px;padding:14px 32px;border-bottom:1px solid var(--line);background:var(--panel);">
+    <a href="Estimates AI Agent.dc.html" style="color:var(--ink2);text-decoration:none;font-size:13px;">‹ All pages</a>
+    <span style="font-size:17px;font-weight:600;">Component set</span>
+    <div style="flex:1;"></div>
+    <sc-for list="{{ jump }}" as="j" hint-placeholder-count="6"><a href="{{ j.href }}" style="font-size:12.5px;color:var(--ink2);text-decoration:none;">{{ j.label }}</a></sc-for>
+    <button onClick="{{ toggleTheme }}" style="height:32px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit;font-size:13px;cursor:pointer;">{{ themeLabel }}</button>
+  </header>
+  <div style="max-width:1320px;margin:0 auto;padding:32px;display:flex;flex-direction:column;gap:56px;">
+
+    <section id="badges" style="display:flex;flex-direction:column;gap:16px;">
+      <h2 style="margin:0;font-size:20px;font-weight:600;">Badges and tags</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
+        <div style="display:flex;flex-direction:column;gap:12px;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);">
+          <span style="font-size:12.5px;color:var(--ink3);">Status badges</span>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;"><sc-for list="{{ statuses }}" as="b" hint-placeholder-count="9"><span style="display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:11px;font-size:12px;font-weight:500;color:{{ b.fg }};background:{{ b.bg }};"><span style="width:6px;height:6px;border-radius:50%;background:currentColor;"></span>{{ b.l }}</span></sc-for></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);">
+          <span style="font-size:12.5px;color:var(--ink3);">Language tags</span>
+          <div style="display:flex;gap:6px;align-items:center;"><sc-for list="{{ langs }}" as="l" hint-placeholder-count="3"><span style="display:inline-flex;align-items:center;height:17px;padding:0 5px;border:1px solid var(--line);border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:var(--ink2);">{{ l }}</span></sc-for><span style="font-size:12.5px;color:var(--ink3);margin-left:6px;">Estimate content language, never the UI language</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);">
+          <span style="font-size:12.5px;color:var(--ink3);">Model tier and cost (message footer; hover for tokens)</span>
+          <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink3);">
+            <sc-for list="{{ tiers }}" as="t" hint-placeholder-count="3"><span style="display:inline-flex;align-items:center;gap:6px;"><span style="display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:5px;border:1px solid var(--line);font-weight:500;color:var(--ink2);">{{ t.n }}</span><span style="font-family:'IBM Plex Mono',monospace;">{{ t.c }}</span></span></sc-for>
+          </div>
+          <div style="align-self:flex-start;padding:8px 10px;border-radius:8px;background:var(--ink);color:var(--bg);font-family:'IBM Plex Mono',monospace;font-size:11.5px;line-height:1.6;">412,880 input tokens<br>38,420 output tokens</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);">
+          <span style="font-size:12.5px;color:var(--ink3);">Row markers in the viewer</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;"><sc-for list="{{ markers }}" as="m" hint-placeholder-count="4"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;"><span style="width:3px;height:16px;border-radius:2px;background:{{ m.c }};"></span><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;padding:1px 4px;border-radius:3px;color:{{ m.c }};background:{{ m.bg }};">{{ m.t }}</span>{{ m.l }}</span></sc-for></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sidebar" style="display:flex;flex-direction:column;gap:16px;">
+      <h2 style="margin:0;font-size:20px;font-weight:600;">Sidebar and conversation list</h2>
+      <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
+        <div style="height:640px;display:flex;border:1px solid var(--line);border-radius:14px;overflow:hidden;"><dc-import name="Sidebar" active="chat" current="result" collapsed="{{ false }}" hint-size="264px,640px"></dc-import></div>
+        <div style="height:640px;display:flex;border:1px solid var(--line);border-radius:14px;overflow:hidden;"><dc-import name="Sidebar" active="history" collapsed="{{ true }}" hint-size="60px,640px"></dc-import></div>
+        <div style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:8px;font-size:14px;color:var(--ink2);line-height:1.6;max-width:420px;"><b style="color:var(--ink);font-weight:600;">Expanded and collapsed.</b>The toggle collapses to a 60 px rail and remembers the choice. It collapses automatically when a document opens in split view. On phones it becomes a drawer behind the ☰ button. A blue dot marks a conversation where the agent is still working.</div>
+      </div>
+    </section>
+
+    <section id="messages" style="display:flex;flex-direction:column;gap:16px;">
+      <h2 style="margin:0;font-size:20px;font-weight:600;">Messages, working steps, document card, chips</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(460px,1fr));gap:24px;align-items:start;">
+        <div style="display:flex;flex-direction:column;gap:24px;padding:24px;border:1px solid var(--line);border-radius:14px;background:var(--bg);">
+          <sc-for list="{{ msgsA }}" as="m" hint-placeholder-count="3"><dc-import name="Message" style="width:100%;" msg="{{ m }}" hint-size="100%,80px"></dc-import></sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:24px;padding:24px;border:1px solid var(--line);border-radius:14px;background:var(--bg);">
+          <sc-for list="{{ msgsB }}" as="m" hint-placeholder-count="3"><dc-import name="Message" style="width:100%;" msg="{{ m }}" hint-size="100%,80px"></dc-import></sc-for>
+        </div>
+      </div>
+    </section>
+
+    <section id="composer" style="display:flex;flex-direction:column;gap:16px;">
+      <h2 style="margin:0;font-size:20px;font-weight:600;">Composer and the “/” file picker</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(460px,1fr));gap:24px;align-items:end;">
+        <div style="display:flex;flex-direction:column;gap:10px;"><span style="font-size:12.5px;color:var(--ink3);">With attached blank and reference chips</span><dc-import name="Composer" style="width:100%;" chips="{{ chips }}" hint-size="100%,150px"></dc-import></div>
+        <div style="display:flex;flex-direction:column;gap:10px;padding-top:400px;"><span style="font-size:12.5px;color:var(--ink3);">Picker open after typing “/pri”. Try ↑↓, Enter, Esc.</span><dc-import name="Composer" style="width:100%;" value="Use /pri" picker-open="{{ true }}" picker-query="pri" chips="{{ chips2 }}" hint-size="100%,150px"></dc-import></div>
+      </div>
+    </section>
+
+    <section id="cards" style="display:flex;flex-direction:column;gap:16px;">
+      <h2 style="margin:0;font-size:20px;font-weight:600;">Inline cards, every state</h2>
+      <sc-for list="{{ cardRows }}" as="r" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <span style="font-size:14px;font-weight:600;">{{ r.title }}</span>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start;">
+            <sc-for list="{{ r.states }}" as="c" hint-placeholder-count="4">
+              <div style="display:flex;flex-direction:column;gap:6px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink3);">{{ c.label }}</span><dc-import name="InlineCard" style="width:100%;" kind="{{ c.kind }}" state="{{ c.state }}" hint-size="100%,140px"></dc-import></div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </section>
+
+    <section id="viewer" style="display:flex;flex-direction:column;gap:16px;">
+      <h2 style="margin:0;font-size:20px;font-weight:600;">Document viewer</h2>
+      <div style="font-size:14px;color:var(--ink2);max-width:760px;line-height:1.6;">The viewer is one component. It runs as a split panel beside the chat, as full screen with the chat reduced to a rail (<a href="chat.dc.html?doc=estimate&amp;mode=full">open example</a>), and as a full-screen sheet on phones. The estimate grid below has 1,248 rows across four sheets, rendered virtually, with frozen first columns and sticky header and subtotals.</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(560px,1fr));gap:24px;">
+        <sc-for list="{{ viewers }}" as="v" hint-placeholder-count="4">
+          <div style="display:flex;flex-direction:column;gap:8px;"><span style="font-size:12.5px;color:var(--ink3);">{{ v.label }}</span>
+            <div style="height:640px;display:flex;border:1px solid var(--line);border-radius:14px;overflow:hidden;"><dc-import name="DocViewer" style="flex:1;min-width:0;height:100%;display:flex;" docs="{{ v.docs }}" active="{{ v.active }}" jump="{{ v.jump }}" mode="split" hint-size="100%,100%"></dc-import></div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
+        <div style="display:flex;flex-direction:column;gap:8px;"><span style="font-size:12.5px;color:var(--ink3);">Phone: full-screen sheet with “Back to chat”, inspector as a bottom sheet</span>
+          <div style="width:390px;height:780px;display:flex;border:1px solid var(--line);border-radius:28px;overflow:hidden;box-shadow:0 12px 40px rgba(16,24,40,0.12);"><dc-import name="DocViewer" style="flex:1;min-width:0;height:100%;display:flex;" docs="{{ mDocs }}" active="estimate" jump="{{ mJump }}" mode="sheet" hint-size="100%,100%"></dc-import></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:320px;"><span style="font-size:12.5px;color:var(--ink3);">Document failed to render</span>
+          <div style="height:360px;display:flex;border:1px solid var(--line);border-radius:14px;overflow:hidden;"><dc-import name="DocViewer" style="flex:1;min-width:0;height:100%;display:flex;" docs="{{ bDocs }}" active="broken" mode="split" hint-size="100%,100%"></dc-import></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const WEB = [['EL', 42, 'Stikkontakt 2-stik m/jord, IP44', 80, 148, 'elektroimportoeren.dk'], ['EL', 57, 'Gruppetavle 12 moduler, rum 3.12', 2, 4200, 'solar.dk'], ['EL', 95, 'Kabelbakke 300 mm, galv., føring plan 3', 395, 212, 'ao.dk'], ['ELT', 184, 'Røgdetektor, adresserbar, rum 2.09', 41, 640, 'elektroimportoeren.dk']];
+const dkk = (n, d = 0) => 'DKK ' + n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+class Component extends DCLogic {
+  state = { theme: 'light' };
+  componentDidMount() { this.setState({ theme: document.documentElement.dataset.theme || 'light' }); }
+  renderVals() {
+    const C = { ok: ['var(--ok)', 'var(--okSoft)'], acc: ['var(--accInk)', 'var(--accSoft)'], warn: ['var(--warn)', 'var(--warnSoft)'], err: ['var(--err)', 'var(--errSoft)'], mute: ['var(--ink2)', 'var(--sunk)'] };
+    const st = (label, state) => ({ label, kind: null, state });
+    const row = (title, kind, states) => ({ title, states: states.map(s => ({ label: s, kind, state: s })) });
+    return {
+      jump: [['Badges', '#badges'], ['Sidebar', '#sidebar'], ['Messages', '#messages'], ['Composer', '#composer'], ['Cards', '#cards'], ['Viewer', '#viewer']].map(j => ({ label: j[0], href: j[1] })),
+      themeLabel: this.state.theme === 'dark' ? 'Light mode' : 'Dark mode',
+      toggleTheme: () => { const t = this.state.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = t; try { localStorage.setItem('eaa-theme', t); } catch (e) {} this.setState({ theme: t }); },
+      statuses: [['Queued', 'mute'], ['Reading', 'acc'], ['Analysing', 'acc'], ['Analysed', 'ok'], ['Failed', 'err'], ['In progress', 'acc'], ['Done', 'ok'], ['Sent', 'mute'], ['Needs attention', 'warn']].map(b => ({ l: b[0], fg: C[b[1]][0], bg: C[b[1]][1] })),
+      langs: ['LV', 'EN', 'DA'], tiers: [['Fast', '$0.01'], ['Standard', '$0.38'], ['Advanced', '$0.61']].map(t => ({ n: t[0], c: t[1] })),
+      markers: [['WEB', 'Web-sourced', 'var(--web)', 'var(--webSoft)'], ['CHECK', 'Low confidence', 'var(--warn)', 'var(--warnSoft)'], ['NO PRICE', 'Not found', 'var(--err)', 'var(--errSoft)'], ['EDITED', 'Manually changed', 'var(--accInk)', 'var(--accSoft)']].map(m => ({ t: m[0], l: m[1], c: m[2], bg: m[3] })),
+      msgsA: [
+        { role: 'user', text: 'Here is an estimate for our client in Denmark. Use /data-center.xlsx, norms.docx as references.', chips: [{ name: 'Tilbud_Hal_B.xlsx', role: 'Blank · 4 sheets' }] },
+        { role: 'agent', blocks: [{ kind: 'steps', status: 'running', title: 'Working…', elapsed: '4 min 12 s', items: [{ label: 'Reading blank', meta: '4 sheets', status: 'done' }, { label: 'Found 4 electrical sheets', meta: 'EL · ELT · Belysning · Tavler', status: 'done' }, { label: 'Matching 1,224 rows against references', meta: '1,207 matched', status: 'done' }, { label: 'Pricing labour', meta: 'DKK 430/h', status: 'done' }, { label: 'Pricing materials', meta: '604 / 1,224', status: 'active', pct: 49, sub: 'Now: Kabel NOIKLX 3G2,5, føring plan 2' }, { label: 'Checking totals and flagging rows', status: 'todo' }] }] },
+        { role: 'agent', tier: 'Standard', cost: '$0.09', tokIn: 48200, tokOut: 2310, blocks: [{ kind: 'steps', status: 'waiting', title: 'Paused: waiting for your answer', elapsed: '1 min 06 s', items: [{ label: 'Pricing materials', meta: '188 / 206', status: 'warn', sub: '3 socket rows have no price in the selected references' }] }] },
+        { role: 'agent', tier: 'Fast', cost: '$0.01', tokIn: 6210, tokOut: 184, blocks: [{ kind: 'text', paras: [[{ row: 'EL · row 58', sheet: 'EL', n: 58 }, ' is the 36-module distribution board. The material price comes from ', { file: 'data-center.xlsx', doc: 'datacenter' }, ' and labour from ', { file: 'norms.docx', doc: 'norms' }, '.']] }] },
+      ],
+      msgsB: [
+        { role: 'agent', tier: 'Advanced', cost: '$0.61', tokIn: 412880, tokOut: 38420, blocks: [
+          { kind: 'steps', status: 'done', title: 'Finished 8 steps', elapsed: '3 min 52 s', items: [] },
+          { kind: 'text', paras: [['The estimate is ready. The total is ', { b: 'DKK 45,626,345' }, ' excl. VAT: labour 38%, material 62%. ', { b: '10 rows need your attention.' }]] },
+          { kind: 'doc', doc: 'estimate', name: 'Estimate_Denmark_Hal_B.xlsx', lang: 'DA', meta: '4 sheets · 1,248 rows · generated today 10:45' },
+          { kind: 'web', rows: WEB.map(w => ({ p: w[2], up: dkk(w[4], 2), q: String(w[3]), t: dkk(w[3] * w[4]), src: w[5], loc: `${w[0]} · row ${w[1]}`, sheet: w[0], n: w[1] })), show: 3 } ] },
+      ],
+      chips: [{ name: 'Tilbud_Hal_B.xlsx', role: 'Blank' }, { name: 'data-center.xlsx', doc: 'datacenter', role: 'Reference' }, { name: 'norms.docx', doc: 'norms', role: 'Reference' }],
+      chips2: [{ name: 'Price list 2025.xlsx', role: 'Reference' }],
+      cardRows: [row('Permission request', 'permission', ['pending', 'approved', 'denied', 'expired']), row('Structure proposal', 'structure', ['pending', 'approved', 'expired', 'done']), row('Clarifying questions', 'clarify', ['pending', 'done', 'expired']), row('Email', 'email', ['pending', 'done', 'failed'])],
+      viewers: [
+        { label: 'xlsx · generated estimate, jumped to EL row 58 with the row inspector open', docs: ['estimate', 'norms'], active: 'estimate', jump: { doc: 'estimate', sheet: 'EL', row: 58, key: 1 } },
+        { label: 'xlsx · reference file (read-only, no markers)', docs: ['datacenter'], active: 'datacenter', jump: null },
+        { label: 'pdf · price list with page thumbnails, zoom and search', docs: ['solar'], active: 'solar', jump: null },
+        { label: 'docx · hourly norms with search', docs: ['norms'], active: 'norms', jump: null },
+      ],
+      mDocs: ['estimate'], mJump: { doc: 'estimate', sheet: 'EL', row: 42, key: 2 }, bDocs: ['broken'],
+    };
+  }
+}
+</script>
+</body>
+</html>
