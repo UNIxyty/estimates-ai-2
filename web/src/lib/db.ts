@@ -16,6 +16,7 @@ function create(): Sql {
     max: Number(process.env.DB_POOL_MAX || 10),
     idle_timeout: 30,
     connect_timeout: 10,
+    connection: { TimeZone: env.appTimezone() },
     onnotice: () => {},
     // numeric -> JS number for API payloads (costs, quantities). Precision of numeric(18,6) is fine as float.
     types: {

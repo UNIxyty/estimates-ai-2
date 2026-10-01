@@ -49,6 +49,7 @@ services:
     environment:
       WORKER_URL: http://worker:8000
       PORT: "3000"
+      TZ: ${APP_TIMEZONE:-UTC}
     volumes: *files
     depends_on:
       worker:

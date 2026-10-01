@@ -20,6 +20,11 @@ export const env = {
     }
     return s;
   },
+  /** Day/month boundaries for usage and budget: the DB session TimeZone (IANA name, e.g. Europe/Riga). */
+  appTimezone: () => {
+    const tz = str('APP_TIMEZONE', 'UTC');
+    return /^[A-Za-z0-9_+\-/]{1,64}$/.test(tz) ? tz : 'UTC';
+  },
   appUrl: () => str('APP_URL', 'http://localhost:3000').replace(/\/+$/, ''),
   workerUrl: () => str('WORKER_URL', 'http://worker:8000').replace(/\/+$/, ''),
   internalToken: () => str('INTERNAL_TOKEN'),

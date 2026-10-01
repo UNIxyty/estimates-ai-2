@@ -36,6 +36,8 @@ class Settings:
         "MIGRATIONS_DIR", os.path.join(os.path.dirname(__file__), "..", "..", "db", "migrations")))
     internal_token: str = field(default_factory=lambda: _env("INTERNAL_TOKEN"))
     app_url: str = field(default_factory=lambda: _env("APP_URL", "http://localhost:3000").rstrip("/"))
+    # Day/month boundaries (usage, budget) are computed in this zone: the DB session TimeZone is set to it.
+    app_timezone: str = field(default_factory=lambda: _env("APP_TIMEZONE", "UTC"))
     build_hash: str = field(default_factory=lambda: _env("BUILD_HASH", "dev"))
     worker_concurrency: int = field(default_factory=lambda: _int("WORKER_CONCURRENCY", 3))
 

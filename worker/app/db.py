@@ -1,6 +1,8 @@
 """Postgres access: one psycopg connection pool, dict rows, pgvector registered."""
 from __future__ import annotations
 
+import re
+
 import json
 from contextlib import contextmanager
 from typing import Any, Iterator
@@ -25,12 +27,17 @@ def _configure(conn: psycopg.Connection) -> None:
     conn.commit()
 
 
+def _tz() -> str:
+    tz = settings.app_timezone or "UTC"
+    return tz if re.fullmatch(r"[A-Za-z0-9_+\-/]{1,64}", tz) else "UTC"
+
+
 def pool() -> ConnectionPool:
     global _pool
     if _pool is None:
         _pool = ConnectionPool(
             settings.database_url, min_size=1, max_size=10, open=True,
-            kwargs={"row_factory": dict_row, "autocommit": False},
+            kwargs={"row_factory": dict_row, "autocommit": False, "options": f"-c TimeZone={_tz()}"},
             configure=_configure,
         )
     return _pool
