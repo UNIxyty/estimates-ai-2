@@ -71,6 +71,14 @@ advisory lock.
 * **Permission rule** (backend, not prompt): tools read only the run's allowed files. A best match in an
   unselected file parks those rows behind a permission card (Allow / Deny, 30-min expiry, Ask again, Undo, and
   idempotent across double clicks and tabs). Denied rows go to web search.
+* **Web prices** come only from allowlisted supplier sites (`WEB_SEARCH_DOMAINS`, e.g. `elektrika.lv:LV,prof.lv:LV`),
+  in EUR, with robots.txt respected and our honest User-Agent (a shop that answers 403 is skipped, never
+  impersonated). Every technical attribute of the row (cores, mm², IP, modules, gangs, poles, A, mA, V…) must be
+  confirmed by the product title or the row stays NO PRICE. Each web price stores its domain and country.
+* **Hourly rate**: when a blank is attached the agent asks for the rate (prefilled from the blank, else the
+  references' median) on the same card as the sheet choice, and prices every labour row as norm hours × that rate.
+  Sheets with price + quantity columns and a Tāme layout are preferred over specification sheets; the card shows
+  each sheet's confidence.
 * **Output**: values are written into a copy of the blank, touching only value cells (formulas, styles, merges and
   widths are kept), with the `Kilde`/source column in the blank's language. Generated estimates are built from
   the template's own structure and formatting.
@@ -109,14 +117,27 @@ cd web && npm ci && npm test && npm run build
 
 ## Accuracy gate
 
+Run it against a **scratch database** (it creates a `gate` user, files and runs), e.g. a second database in the
+same Postgres container:
+
 ```bash
-docker compose run --rm -v /path/to/estimates:/gate worker \
-  python -m app.accuracy_gate --loo /gate/references --norms /gate/norms/*.xlsx --out /gate/report.md
+docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE DATABASE estimates_gate"'
+docker compose run --rm -v /path/to/gate-estimates:/gate:ro -e RUN_COST_CAP_USD=25 worker sh -c \
+  'export ESTIMATES_DATABASE_URL="postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/estimates_gate" &&
+   python -m app.accuracy_gate --loo /gate --knowledge /gate/knowledge --out /data/files/gate-report/report.md'
 ```
-Leave-one-out: each reference estimate in turn becomes the held-out file. The rest are ingested, the held-out
-file's price cells are blanked, the agent fills the blank, and the result is compared row by row with the hand-priced
-values (labour and material separately, ±15%). The report also shows cost per run and the share of rows priced
-without a model call.
+Leave-one-out: each estimate in `--loo` is held out in turn; the others plus everything in `--knowledge` (priced
+estimates, price lists, hourly norms; type from the sub-folder name or the file's content) form the knowledge base.
+The held-out file's price cells are blanked, the agent fills it through the normal run path (the gate answers the
+setup card like an estimator: the sheets holding the hand-priced rows and the estimate's own hourly rate), and the
+result is compared row by row:
+
+* **labour norm hours per unit** (main metric: hourly rates differ per project), labour EUR and material EUR, ±15%;
+* the median agent/hand ratio for each, and how rows were priced (directly / model / web / NO PRICE);
+* cost per run and the share of rows priced without a model call; a per-file ingestion table.
+
+Raise `RUN_COST_CAP_USD` for the gate container only: a run that hits the cap pauses for "Continue" and the gate
+would score it as unpriced (its status column shows `paused_cost`).
 
 ## Design import
 

@@ -1,7 +1,12 @@
 """Supplier price lookup on the web: pluggable search provider (Brave Search API or Tavily) plus a
 polite page fetch.
 
+* Only allowlisted supplier domains (WEB_SEARCH_DOMAINS, Baltic/EU shops) are searched and fetched.
 * robots.txt is honoured for every page fetched (our own User-Agent; unreachable robots → skip host).
+  A site that refuses our honest User-Agent (403) is skipped; we never pretend to be a browser.
+* Prices must be explicitly in EUR, and every technical attribute of the row (cores, cross-section, IP,
+  modules, gangs, poles, amps, diameter, size, mA, volts) must be confirmed by the product title, else the row
+  stays NO PRICE.
 * Search result pages of other sites are never scraped; only the provider API is queried.
 * One request per host every HOST_INTERVAL seconds.
 * Prices are extracted from structured data first (JSON-LD Product/Offer, microdata, OpenGraph), then
@@ -26,6 +31,7 @@ import httpx
 
 from ..config import settings
 from ..llm import ledger
+from ..matching.attributes import _EQUAL_KEYS, parse_attributes
 from ..llm.ledger import Ctx
 
 log = logging.getLogger(__name__)
@@ -47,7 +53,7 @@ class Provider:
     def configured(self) -> bool:
         return False
 
-    def search(self, query: str, count: int = 5) -> list[SearchHit]:
+    def search(self, query: str, count: int = 5, domains: list[str] | None = None) -> list[SearchHit]:
         raise NotImplementedError
 
 
@@ -57,7 +63,9 @@ class BraveProvider(Provider):
     def configured(self) -> bool:
         return bool(settings.brave_api_key)
 
-    def search(self, query: str, count: int = 5) -> list[SearchHit]:
+    def search(self, query: str, count: int = 5, domains: list[str] | None = None) -> list[SearchHit]:
+        if domains:
+            query = f"{query} ({' OR '.join(f'site:{d}' for d in domains)})"
         r = httpx.get("https://api.search.brave.com/res/v1/web/search",
                       params={"q": query, "count": count},
                       headers={"X-Subscription-Token": settings.brave_api_key, "Accept": "application/json"},
@@ -73,9 +81,11 @@ class TavilyProvider(Provider):
     def configured(self) -> bool:
         return bool(settings.tavily_api_key)
 
-    def search(self, query: str, count: int = 5) -> list[SearchHit]:
-        r = httpx.post("https://api.tavily.com/search",
-                       json={"api_key": settings.tavily_api_key, "query": query, "max_results": count},
+    def search(self, query: str, count: int = 5, domains: list[str] | None = None) -> list[SearchHit]:
+        body = {"api_key": settings.tavily_api_key, "query": query, "max_results": count}
+        if domains:
+            body["include_domains"] = domains
+        r = httpx.post("https://api.tavily.com/search", json=body,
                        timeout=TIMEOUT)
         r.raise_for_status()
         return [SearchHit(h.get("title", ""), h["url"], h.get("content", "")[:300])
@@ -83,6 +93,48 @@ class TavilyProvider(Provider):
 
 
 _PROVIDERS = {"brave": BraveProvider, "tavily": TavilyProvider}
+
+_TLD_COUNTRY = {"lv": "LV", "lt": "LT", "ee": "EE", "fi": "FI", "de": "DE", "pl": "PL", "se": "SE", "dk": "DK",
+                "nl": "NL", "at": "AT", "be": "BE", "fr": "FR", "es": "ES", "it": "IT", "ie": "IE", "eu": "EU"}
+
+
+def allowed_domains() -> dict[str, str]:
+    """WEB_SEARCH_DOMAINS → {domain: country}. "elektrika.lv:LV, prof.lv" → {"elektrika.lv": "LV", "prof.lv": "LV"}."""
+    out: dict[str, str] = {}
+    for part in (settings.web_search_domains or "").split(","):
+        part = part.strip().lower()
+        if not part:
+            continue
+        dom, _, cc = part.partition(":")
+        dom = dom.strip().removeprefix("www.")
+        out[dom] = (cc.strip().upper() or _TLD_COUNTRY.get(dom.rsplit(".", 1)[-1], "EU"))
+    return out
+
+
+def domain_of(url: str, allow: dict[str, str]) -> tuple[str, str] | None:
+    """(domain, country) when the URL's host is an allowlisted domain or one of its subdomains."""
+    host = (urlparse(url).hostname or "").lower()
+    for dom, cc in allow.items():
+        if host == dom or host.endswith("." + dom):
+            return dom, cc
+    return None
+
+
+def web_attributes_match(row_text: str, product: str) -> bool:
+    """HARD filter for web prices: same category, and every technical attribute of the row is present in the
+    product title with the same value. A higher-voltage product never stands in for a row that doesn't ask for it."""
+    want, have = parse_attributes(row_text), parse_attributes(product)
+    cw, ch = want.get("category"), have.get("category")
+    if cw and cw != "other" and cw != ch:
+        return False
+    for k in (*_EQUAL_KEYS, "volts"):
+        if k in want and (k not in have or str(have[k]).lower() != str(want[k]).lower()):
+            if not (isinstance(want[k], (int, float)) and isinstance(have.get(k), (int, float))
+                    and abs(float(want[k]) - float(have[k])) < 1e-6):
+                return False
+    if "volts" not in want and have.get("volts", 0) >= 380:
+        return False
+    return True
 
 
 def provider() -> Provider:
@@ -169,7 +221,7 @@ def _walk_ld(node, out: list[dict]) -> None:
                 price = _num(o.get("price") or o.get("lowPrice"))
                 if price is not None:
                     out.append({"product": node.get("name"), "unit_price": price,
-                                "currency": o.get("priceCurrency") or "EUR"})
+                                "currency": (o.get("priceCurrency") or "").upper() or None})
         for v in node.values():
             if isinstance(v, (dict, list)):
                 _walk_ld(v, out)
@@ -189,7 +241,7 @@ def extract_price(html: str) -> dict | None:
     title = unescape((_TITLE.search(html) or [None, ""])[1]).strip() if _TITLE.search(html) else ""
     if price is not None:
         return {"product": metas.get("og:title") or title, "unit_price": price,
-                "currency": metas.get("product:price:currency") or metas.get("pricecurrency") or "EUR"}
+                "currency": (metas.get("product:price:currency") or metas.get("pricecurrency") or "").upper() or None}
     m = _TEXT_PRICE.search(re.sub(r"<[^>]+>", " ", html))
     if m:
         return {"product": title, "unit_price": _num(m.group(1) or m.group(2)), "currency": "EUR",
@@ -199,11 +251,14 @@ def extract_price(html: str) -> dict | None:
 
 # ------------------------------------------------------------------ public
 
-def find_price(query: str, *, ctx: Ctx, must_tokens: set[str] | None = None) -> dict | None:
-    """Search, fetch up to 3 allowed pages, return the first structured price whose product name shares
-    the query's key tokens. Returns {product, unit_price, currency, url, fetched_at} or None."""
+def find_price(query: str, *, ctx: Ctx, must_tokens: set[str] | None = None,
+               row_text: str | None = None) -> dict | None:
+    """Search the allowlisted suppliers, fetch up to 3 allowed pages, return the first EUR price whose product
+    shares the query's key tokens and passes the attribute filter for `row_text`.
+    Returns {product, unit_price, currency, url, domain, country, fetched_at} or None."""
     prov = provider()
-    if not prov.configured():
+    allow = allowed_domains()
+    if not prov.configured() or not allow:
         return None
     hits: list[SearchHit] = []
     try:
@@ -211,7 +266,7 @@ def find_price(query: str, *, ctx: Ctx, must_tokens: set[str] | None = None) -> 
         # simply has no web price; it must never fail the whole run.
         for attempt in (1, 2):
             try:
-                hits = prov.search(query, count=6)
+                hits = prov.search(query, count=6, domains=list(allow))
                 break
             except httpx.HTTPError as e:
                 status = getattr(getattr(e, "response", None), "status_code", None)
@@ -229,6 +284,9 @@ def find_price(query: str, *, ctx: Ctx, must_tokens: set[str] | None = None) -> 
         for h in hits:
             if fetched >= 3:
                 break
+            where = domain_of(h.url, allow)
+            if where is None:
+                continue
             if not allowed_by_robots(h.url, client):
                 log.info("robots.txt disallows %s", h.url)
                 continue
@@ -251,6 +309,12 @@ def find_price(query: str, *, ctx: Ctx, must_tokens: set[str] | None = None) -> 
             name = (got.get("product") or h.title or "").lower()
             if must_tokens and not any(t in name for t in must_tokens):
                 continue
-            return {**got, "product": got.get("product") or h.title, "url": h.url,
+            if got.get("currency") != "EUR":
+                continue
+            product = got.get("product") or h.title
+            if row_text and not web_attributes_match(row_text, product):
+                log.info("web price rejected by attribute filter: %r for %r", product[:80], row_text[:80])
+                continue
+            return {**got, "product": product, "url": h.url, "domain": where[0], "country": where[1],
                     "fetched_at": datetime.now(timezone.utc).isoformat()}
     return None

@@ -125,7 +125,8 @@ def request_file_permission(rc: RunContext, file_id: str, rows: list[dict], reas
 
 
 def web_search_price(rc: RunContext, query: str) -> dict:
-    found = websearch.find_price(query, ctx=rc.ctx, must_tokens={t for t in tokens(query) if len(t) > 3} or None)
+    found = websearch.find_price(query, ctx=rc.ctx, must_tokens={t for t in tokens(query) if len(t) > 3} or None,
+                                 row_text=query)
     if not found:
         return {"found": False}
     return {"found": True, "flag": "WEB", "note": "Retail web price; never stored as a reference price", **found}

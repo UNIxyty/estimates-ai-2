@@ -186,9 +186,11 @@ function DecisionCard({ card }: { card: Card }) {
   if (card.kind === 'clarify') {
     pill = card.status === 'pending' ? 'pending' : card.status === 'answered' ? 'done' : 'expired';
     footer = card.status === 'answered' ? 'Answers sent.' : card.status === 'expired' ? 'Expired. You sent a new message instead.' : '';
-    body = p.purpose === 'confirm_sheets'
-      ? <div>I&apos;m not sure which sheets hold the electrical works. Pick them and I&apos;ll start.</div>
-      : <div>The work list is too short to price reliably. A few quick answers and I can start.</div>;
+    body = p.purpose === 'confirm_setup'
+      ? <div>Before I price this blank: confirm the hourly rate{Array.isArray(p.questions) && p.questions.some((q: { id?: string }) => q.id === 'sheets') ? ' and which sheets to price' : ''}. Every labour row uses this rate.</div>
+      : p.purpose === 'confirm_sheets'
+        ? <div>I&apos;m not sure which sheets hold the electrical works. Pick them and I&apos;ll start.</div>
+        : <div>The work list is too short to price reliably. A few quick answers and I can start.</div>;
     content = <ClarifyBody card={card} busy={busy} decide={decide} />;
   }
 
@@ -327,14 +329,26 @@ function StructurePending({ card, busy, decide }: { card: Card; busy: boolean; d
 const SKIP = 'No preference, use your defaults';
 function ClarifyBody({ card, busy, decide }: { card: Card; busy: boolean; decide: (a: string, d?: Record<string, unknown>) => void }) {
   const p = card.payload || {};
-  const qs: { id: string; text: string; options?: (string | { value?: string; label?: string })[]; multi?: boolean; suggested?: string[] }[] = Array.isArray(p.questions) ? p.questions : [];
-  const [ans, setAns] = useState<Record<string, unknown>>(() => Object.fromEntries(qs.filter((q) => q.multi && q.suggested?.length).map((q) => [q.id, q.suggested])));
-  const answered = qs.filter((q) => { const v = ans[q.id]; return Array.isArray(v) ? v.length > 0 : typeof v === 'string' ? v.trim() !== '' : v != null; }).length;
+  const qs: {
+    id: string; text: string; options?: (string | { value?: string; label?: string })[]; multi?: boolean; suggested?: string[];
+    type?: 'number'; default?: number | string | null; unit?: string; hint?: string;
+    option_meta?: Record<string, { confidence?: number; reason?: string }>;
+  }[] = Array.isArray(p.questions) ? p.questions : [];
+  const [ans, setAns] = useState<Record<string, unknown>>(() => Object.fromEntries([
+    ...qs.filter((q) => q.multi && q.suggested?.length).map((q) => [q.id, q.suggested]),
+    ...qs.filter((q) => q.type === 'number' && q.default != null).map((q) => [q.id, String(q.default)]),
+  ]));
+  const validNumber = (v: unknown) => { const n = Number(String(v ?? '').replace(',', '.')); return Number.isFinite(n) && n > 0; };
+  const answered = qs.filter((q) => { const v = ans[q.id]; if (q.type === 'number') return validNumber(v); return Array.isArray(v) ? v.length > 0 : typeof v === 'string' ? v.trim() !== '' : v != null; }).length;
   const all = answered === qs.length;
 
   if (card.status !== 'pending') {
     const given = (card.decision?.data?.answers ?? {}) as Record<string, unknown>;
-    const list = qs.map((q) => given[q.id]).filter((v) => v != null && v !== '').flatMap((v) => (Array.isArray(v) ? v : [v])).map(String);
+    const list = qs.flatMap((q) => {
+      const v = given[q.id];
+      if (v == null || v === '') return [];
+      return (Array.isArray(v) ? v : [v]).map((x) => (q.type === 'number' && q.unit ? `${x} ${q.unit}` : String(x)));
+    });
     if (!list.length) return null;
     return (
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '6px 16px 12px' }}>
@@ -342,7 +356,8 @@ function ClarifyBody({ card, busy, decide }: { card: Card; busy: boolean; decide
       </div>
     );
   }
-  const skip = () => decide('answer', { answers: Object.fromEntries(qs.map((q) => [q.id, ans[q.id] ?? (q.multi && q.suggested?.length ? q.suggested : SKIP)])) });
+  const skip = () => decide('answer', { answers: Object.fromEntries(qs.map((q) => [q.id, ans[q.id] ?? (q.type === 'number' ? q.default ?? null : q.multi && q.suggested?.length ? q.suggested : SKIP)])) });
+  const send = () => decide('answer', { answers: Object.fromEntries(qs.map((q) => [q.id, q.type === 'number' ? Number(String(ans[q.id]).replace(',', '.')) : ans[q.id]])) });
   return (
     <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '10px 16px 4px' }}>
@@ -356,17 +371,30 @@ function ClarifyBody({ card, busy, decide }: { card: Card; busy: boolean; decide
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }} role={q.multi ? 'group' : 'radiogroup'} aria-label={q.text}>
                   {opts.map((o) => {
                     const on = q.multi ? Array.isArray(cur) && cur.includes(o.v) : cur === o.v;
+                    const meta = q.option_meta?.[o.v];
                     return (
-                      <button key={o.v} type="button" role={q.multi ? 'checkbox' : 'radio'} aria-checked={on}
+                      <button key={o.v} type="button" role={q.multi ? 'checkbox' : 'radio'} aria-checked={on} title={meta?.reason}
                         onClick={() => setAns((a) => {
                           if (!q.multi) return { ...a, [q.id]: o.v };
                           const set = new Set(Array.isArray(a[q.id]) ? (a[q.id] as string[]) : []);
                           if (set.has(o.v)) set.delete(o.v); else set.add(o.v);
                           return { ...a, [q.id]: [...set] };
                         })}
-                        style={{ height: 30, padding: '0 12px', borderRadius: 15, border: `1px solid ${on ? 'var(--acc)' : 'var(--line)'}`, background: on ? 'var(--acc)' : 'var(--panel)', color: on ? '#fff' : 'var(--ink)', font: 'inherit', fontSize: 13, cursor: 'pointer' }}>{o.l}</button>
+                        style={{ height: 30, padding: '0 12px', borderRadius: 15, border: `1px solid ${on ? 'var(--acc)' : 'var(--line)'}`, background: on ? 'var(--acc)' : 'var(--panel)', color: on ? '#fff' : 'var(--ink)', font: 'inherit', fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                        {o.l}
+                        {meta?.confidence != null && <span style={{ fontFamily: 'var(--mono)', fontSize: 11, opacity: 0.75 }}>{Math.round(meta.confidence * 100)}%</span>}
+                      </button>
                     );
                   })}
+                </div>
+              ) : q.type === 'number' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    <input inputMode="decimal" value={String(cur ?? '')} onChange={(e) => setAns((a) => ({ ...a, [q.id]: e.target.value }))} aria-label={q.text}
+                      style={{ width: 110, height: 34, padding: '0 10px', border: `1px solid ${validNumber(cur) ? 'var(--line)' : 'var(--err)'}`, borderRadius: 9, background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--mono)', fontSize: 14, textAlign: 'right', outlineColor: 'var(--acc)' }} />
+                    {q.unit && <span style={{ fontSize: 13, color: 'var(--ink2)' }}>{q.unit}</span>}
+                  </label>
+                  {q.hint && <span style={{ fontSize: 12.5, color: 'var(--ink3)' }}>{q.hint}</span>}
                 </div>
               ) : (
                 <input value={String(cur ?? '')} onChange={(e) => setAns((a) => ({ ...a, [q.id]: e.target.value }))} aria-label={q.text} placeholder="Your answer"
@@ -377,7 +405,7 @@ function ClarifyBody({ card, busy, decide }: { card: Card; busy: boolean; decide
         })}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '14px 16px 16px' }}>
-        <button type="button" disabled={busy || !all} onClick={() => decide('answer', { answers: ans })}
+        <button type="button" disabled={busy || !all} onClick={send}
           style={{ ...btnPrimary, background: all ? 'var(--acc)' : 'var(--ink3)', cursor: all ? 'pointer' : 'default' }}>Send answers</button>
         <button type="button" disabled={busy} onClick={skip} className="hv-sunk"
           style={{ height: 36, padding: '0 12px', border: 0, borderRadius: 9, background: 'transparent', color: 'var(--ink2)', font: 'inherit', fontSize: 13.5, cursor: 'pointer' }}>Skip, use defaults</button>

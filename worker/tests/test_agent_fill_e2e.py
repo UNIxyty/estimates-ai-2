@@ -78,6 +78,11 @@ def test_fill_blank_end_to_end_with_permission_flow(_env):
     rid = str(run["id"])
 
     agent_run.run_agent({"run_id": rid})
+    # The run first asks for the hourly rate, prefilled from the blank (14/h); accepting it prices every labour row.
+    assert db.fetchone("SELECT status FROM runs WHERE id=%s", (rid,))["status"] == "waiting"
+    setup = fx.answer_setup(rid)
+    rate_q = next(q for q in setup["payload"]["questions"] if q["id"] == "hourly_rate")
+    assert rate_q["default"] == 14.0 and "Found in the blank" in rate_q["hint"]
 
     r = db.fetchone("SELECT status, kind, state FROM runs WHERE id=%s", (rid,))
     assert r["kind"] == "fill_blank"

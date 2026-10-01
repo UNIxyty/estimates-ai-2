@@ -88,13 +88,15 @@ def _record_web(c, *, run: dict, document_id: str, rows: list[dict]) -> list[dic
         qty = r["qty"]
         total = round(float(qty) * float(w["unit_price"]), 2) if qty is not None else None
         c.execute("""INSERT INTO web_prices(run_id, document_id, sheet_name, row_idx, query, product, unit_price,
-                         currency, url, fetched_at, qty, total)
-                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                         currency, url, fetched_at, qty, total, domain, country)
+                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
                   (run["id"], document_id, r["sheet_name"], r["row_idx"], r["item_text"], w.get("product"),
                    w["unit_price"], w.get("currency", "EUR"), w.get("url"),
-                   w.get("fetched_at") or datetime.now(timezone.utc).isoformat(), qty, total))
+                   w.get("fetched_at") or datetime.now(timezone.utc).isoformat(), qty, total,
+                   w.get("domain"), w.get("country")))
         out.append({"product": w.get("product"), "unit_price": w["unit_price"], "currency": w.get("currency", "EUR"),
-                    "qty": qty, "total": total, "url": w.get("url"), "sheet": r["sheet_name"], "row": r["row_idx"]})
+                    "qty": qty, "total": total, "url": w.get("url"), "sheet": r["sheet_name"], "row": r["row_idx"],
+                    "domain": w.get("domain"), "country": w.get("country")})
     return out
 
 

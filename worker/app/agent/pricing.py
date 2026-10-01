@@ -136,6 +136,14 @@ class PricingEngine:
             pr.unit_labour = round(item.norm_h * rate, 4)
             if item.hourly_rate and self.target_rate and abs(item.hourly_rate - self.target_rate) > 1e-6:
                 why += f"; labour re-rated from {item.hourly_rate:g} to {self.target_rate:g}/h"
+        elif item.unit_labour is not None and item.hourly_rate and self.target_rate:
+            # Only EUR labour in the source: convert through the source's own rate to hours, then to this run's rate.
+            pr.norm_h = round(item.unit_labour / item.hourly_rate, 4)
+            pr.unit_labour = round(pr.norm_h * self.target_rate, 4)
+            pr.hourly_rate = self.target_rate
+            if abs(item.hourly_rate - self.target_rate) > 1e-6:
+                why += (f"; labour {item.unit_labour:g} at {item.hourly_rate:g}/h = {pr.norm_h:g} h, "
+                        f"re-rated to {self.target_rate:g}/h")
         else:
             pr.unit_labour = item.unit_labour
         pr.reason = why
@@ -384,13 +392,23 @@ class PricingEngine:
                     pr.flags.append("WEB")
                 if pr.source == "none":
                     pr.source = "web"
-                    pr.reason = (f"Retail web price from {found.get('url')} — retail prices can run ~40% above "
-                                 f"contract prices")
+                    pr.reason = (f"Retail web price from {found.get('domain') or found.get('url')} "
+                                 f"({found.get('country') or '?'}, {found.get('url')}) — retail prices can run "
+                                 f"~40% above contract prices")
                     pr.set_conf(40)
                 else:
                     pr.reason += f"; material from web ({found.get('url')})"
                 self.stats["web"] += 1
             self.progress("web", n, len(todo))
+
+    def _apply_run_rate(self, rows: list[PricedRow]) -> None:
+        """The estimator's hourly rate for this run applies to EVERY labour row: labour = norm hours × run rate."""
+        if not self.target_rate:
+            return
+        for pr in rows:
+            if pr.norm_h is not None:
+                pr.hourly_rate = self.target_rate
+                pr.unit_labour = round(pr.norm_h * self.target_rate, 4)
 
     # ----------------------------------------------------------------- run
     def price(self, specs: list[RowSpec], *, embeddings: dict[str, list[float]] | None = None,
@@ -410,6 +428,7 @@ class PricingEngine:
         self._norms(rows)
         self._model(rows)
         self._web(rows, denied_rows or set())
+        self._apply_run_rate(rows)
         for pr in rows:
             if pr.source == "pending_permission":
                 self.stats["pending_permission"] += 1

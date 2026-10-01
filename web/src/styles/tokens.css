@@ -6,7 +6,7 @@
 :root,[data-theme=light]{--bg:#fcfcfd;--side:#f5f6f8;--panel:#ffffff;--sunk:#eef0f3;--bubble:#eceff4;--line:#e1e4e9;--line2:#eceef2;--ink:#15181c;--ink2:#4a525c;--ink3:#737b86;--acc:#1f5eff;--accSoft:#e7eeff;--accInk:#1747c9;--ok:#177a43;--okSoft:#e3f3e9;--warn:#9a5700;--warnSoft:#fcefd8;--err:#bf3228;--errSoft:#fbe6e4;--web:#0d6e84;--webSoft:#dff1f5;--hl:#fff1b3;--hl2:#fff8d6;color-scheme:light}
 [data-theme=dark]{--bg:#141619;--side:#101214;--panel:#1a1d21;--sunk:#23272c;--bubble:#262a30;--line:#2d3238;--line2:#23272c;--ink:#e7e9ec;--ink2:#adb4bc;--ink3:#7f8791;--acc:#4a7dff;--accSoft:#1b2851;--accInk:#9ab7ff;--ok:#5cc98a;--okSoft:#14301f;--warn:#f0b04a;--warnSoft:#3a2a10;--err:#f07a70;--errSoft:#3d1a18;--web:#55c6da;--webSoft:#0f2d33;--hl:#4a3f12;--hl2:#2e2912;color-scheme:dark}
 
-:root{--sans:var(--font-plex-sans),'IBM Plex Sans',system-ui,sans-serif;--mono:var(--font-plex-mono),'IBM Plex Mono',ui-monospace,monospace}
+:root{--sans:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
 *{box-sizing:border-box}
 a{color:var(--accInk)}a:hover{color:var(--acc)}

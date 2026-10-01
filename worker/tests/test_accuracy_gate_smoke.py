@@ -48,12 +48,43 @@ def test_gate_leave_one_out_runs_and_scores(tmp_path):
         out = tmp_path / "report.md"
         assert accuracy_gate.main(["--loo", str(d), "--out", str(out), "--cleanup"]) == 0
         report = out.read_text()
-        assert "Labour within ±15%" in report and "a.xlsx" in report and "c.xlsx" in report
+        assert "Labour hours within ±15%" in report and "a.xlsx" in report and "c.xlsx" in report
+        assert "## Knowledge ingested" in report and "Median agent/hand ratio" in report
         import json
         res = json.loads((tmp_path / "report.json").read_text())["results"]
         a = next(r for r in res if r["name"] == "a.xlsx")["score"]
+        assert a["hours"]["rows"] == 4 and a["hours"]["within_15pct"] >= 3
+        assert a["hours"]["median_ratio"] == pytest.approx(1.0, abs=0.05)
         assert a["labour"]["rows"] == 4 and a["labour"]["within_15pct"] >= 3
+        assert a["how"]["direct"] >= 3 and a["how"]["model"] == 0
         assert a["share_without_model_call"] == 1.0 and a["cost_usd"] == 0
+    finally:
+        object.__setattr__(llm.settings, "llm_enabled", True)
+        db.execute("DELETE FROM jobs")
+
+
+def test_gate_knowledge_dir_is_ingested_with_types_and_reported(tmp_path):
+    fx.migrate()
+    object.__setattr__(llm.settings, "llm_enabled", False)
+    try:
+        d = tmp_path / "refs"
+        d.mkdir()
+        k = tmp_path / "knowledge" / "estimates"
+        k.mkdir(parents=True)
+        _estimate(str(d / "a.xlsx"), 12, ITEMS)
+        _estimate(str(d / "b.xlsx"), 12, ITEMS[:2])
+        _estimate(str(k / "old_job.xlsx"), 12, ITEMS[2:])
+        out = tmp_path / "report.md"
+        assert accuracy_gate.main(["--loo", str(d), "--knowledge", str(tmp_path / "knowledge"), "--out", str(out),
+                                   "--cleanup"]) == 0
+        import json
+        data = json.loads((tmp_path / "report.json").read_text())
+        kn = {r["original_name"]: r for r in data["knowledge"]}
+        assert kn["old_job.xlsx"]["tag"] == "reference_estimate" and kn["old_job.xlsx"]["status"] == "analysed"
+        assert kn["old_job.xlsx"]["prices"] == 2
+        # a.xlsx held out: its last two items come from the knowledge folder, the first two from b.xlsx
+        a = next(r for r in data["results"] if r["name"] == "a.xlsx")["score"]
+        assert a["how"]["direct"] == 4
     finally:
         object.__setattr__(llm.settings, "llm_enabled", True)
         db.execute("DELETE FROM jobs")

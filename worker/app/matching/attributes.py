@@ -205,6 +205,9 @@ _RE_CABLE_TYPE = re.compile(
     r"fe180|ngo|pp00)\b")
 _RE_CAT_DATA = re.compile(r"\bcat\s?(5e|6a|6|7a|7|8|5)\b")
 
+_RE_VOLTS = re.compile(r"(?<![\d/])(\d{2,4})\s?v(?:ac|dc)?\b")
+_STD_VOLTS = {12, 24, 36, 42, 48, 110, 220, 230, 240, 250, 380, 400, 415, 440, 500, 690, 1000}
+# volts is parsed but NOT a reference-matching key (references rarely state it); web search checks it.
 _EQUAL_KEYS = ("cores", "cross_section_mm2", "ip", "modules", "gangs", "poles", "amps", "diameter_mm", "size",
                "sensitivity_ma")
 
@@ -331,6 +334,11 @@ def _parse(text: str) -> tuple[tuple[str, Any], ...]:
     m = _RE_MA.search(n)
     if m:
         out["sensitivity_ma"] = int(m.group(1))
+    # rated voltage ("230V", "400 V", "250 V AC"); a cable's "300/500V" rating is not a supply voltage
+    if cat != "cable":
+        m = _RE_VOLTS.search(n)
+        if m and int(m.group(1)) in _STD_VOLTS:
+            out["volts"] = int(m.group(1))
 
     # conduit diameter
     m = _RE_DIAM_PREFIX.search(raw.lower())

@@ -88,7 +88,8 @@ def price_with_events(rc: RunContext, specs: list[RowSpec], *, task: str, target
 
     def web_lookup(spec: RowSpec) -> dict | None:
         return websearch.find_price(f"{spec.text} {price_word}", ctx=rc.ctx,
-                                    must_tokens={t for t in tokens(spec.text) if len(t) > 3} or None)
+                                    must_tokens={t for t in tokens(spec.text) if len(t) > 3} or None,
+                                    row_text=spec.text)
 
     eng = PricingEngine(rc.kb, allowed=rc.allowed, denied=rc.denied, ctx=rc.ctx, target_rate=target_rate,
                         task=task, forced_tier=rc.forced_tier, progress=progress_tracked, current=current,

@@ -170,3 +170,21 @@ def aws_access_denied(operation: str = "Converse") -> Exception:
     cls = boto3.client("bedrock-runtime", region_name="eu-north-1").exceptions.AccessDeniedException
     return cls({"Error": {"Code": "AccessDeniedException", "Message": "Model access is denied due to IAM user or "
                 "service role is not authorized to perform the required AWS Marketplace actions"}}, operation)
+
+
+def answer_setup(run_id: str, *, rate=None, sheets=None) -> dict:
+    """Answer the fill flow's setup card (hourly rate + sheets) like the user would, then resume the run.
+    rate=None accepts the prefilled value. Returns the card that was answered."""
+    from app import db as _db
+    from app.agent import run as _run
+    card = _db.fetchone("SELECT * FROM cards WHERE run_id=%s AND kind='clarify' AND status='pending' "
+                        "AND payload->>'purpose'='confirm_setup'", (run_id,))
+    assert card, "no pending setup card"
+    qs = {q["id"]: q for q in card["payload"]["questions"]}
+    answers = {"hourly_rate": rate if rate is not None else qs["hourly_rate"].get("default")}
+    if "sheets" in qs:
+        answers["sheets"] = sheets if sheets is not None else qs["sheets"].get("suggested")
+    _db.execute("UPDATE cards SET status='answered', decision=%s WHERE id=%s",
+                (_db.jsonb({"action": "answer", "data": {"answers": answers}}), card["id"]))
+    _run.resume_run({"run_id": run_id, "card_id": str(card["id"])})
+    return card

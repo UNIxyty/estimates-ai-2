@@ -65,6 +65,8 @@ class Settings:
     web_search_provider: str = field(default_factory=lambda: _env("WEB_SEARCH_PROVIDER", "brave"))
     brave_api_key: str = field(default_factory=lambda: _env("BRAVE_API_KEY"))
     tavily_api_key: str = field(default_factory=lambda: _env("TAVILY_API_KEY"))
+    # Supplier allowlist for web prices: "domain[:CC]" comma-separated (CC = ISO country; default from the TLD).
+    web_search_domains: str = field(default_factory=lambda: _env("WEB_SEARCH_DOMAINS", "elektrika.lv:LV"))
     web_search_unit_cost_usd: float = field(default_factory=lambda: _float("WEB_SEARCH_UNIT_COST_USD", 0.005))
     web_user_agent: str = field(default_factory=lambda: _env(
         "WEB_USER_AGENT", "EstimatesAgent/1.0 (+price lookup; respects robots.txt)"))
