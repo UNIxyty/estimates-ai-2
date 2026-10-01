@@ -1,5 +1,5 @@
 /**
- * MGS brand mark: "MGS" in Broadway (falls back to Georgia where Broadway isn't installed), a 1px divider, then
+ * MGS brand mark: bold "MGS" in Broadway (falls back to Georgia where Broadway isn't installed), a 1px divider, then
  * "Estimates AI". Sizes from the brand spec: top bar 24px, login 30px, walkthrough modal 22px.
  * Colours are tokens (--brand, --brand-divider, --brand-divider-strong, --brand-name) so dark mode stays legible.
  */
@@ -12,7 +12,7 @@ const SIZE: Record<Variant, number> = { topbar: 24, login: 30, modal: 22 };
 
 export function BrandLogo({ size = 24, style }: { size?: number; style?: CSSProperties }) {
   return (
-    <span aria-label="MGS" style={{ fontFamily: BRAND_FONT, fontWeight: 400, fontSize: size, lineHeight: 1, color: 'var(--brand)', letterSpacing: '0.01em', whiteSpace: 'nowrap', ...style }}>
+    <span aria-label="MGS" style={{ fontFamily: BRAND_FONT, fontWeight: 700, fontSynthesis: 'weight', fontSize: size, lineHeight: 1, color: 'var(--brand)', letterSpacing: '0.01em', whiteSpace: 'nowrap', ...style }}>
       MGS
     </span>
   );
