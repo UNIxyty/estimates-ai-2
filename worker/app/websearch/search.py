@@ -40,6 +40,22 @@ TIMEOUT = 12.0
 MAX_PAGE_BYTES = 2_000_000
 
 
+class SearchUnavailable(RuntimeError):
+    """The search provider refused or failed (blocked IP, bad key, quota, outage) — not "nothing found"."""
+
+
+# Last provider failure, for /health and the UI: {"provider", "error", "at"} or None.
+last_error: dict | None = None
+
+
+def _provider_error_text(e: Exception, provider_name: str) -> str:
+    status = getattr(getattr(e, "response", None), "status_code", None)
+    hint = {401: "the API key was rejected", 403: "the provider refuses requests from this server (blocked IP or key)",
+            429: "rate limit or monthly quota reached", 432: "monthly plan limit reached",
+            433: "pay-as-you-go limit reached"}.get(status, "network or provider error")
+    return f"{provider_name} search failed ({status or type(e).__name__}): {hint}"
+
+
 @dataclass
 class SearchHit:
     title: str
@@ -260,20 +276,24 @@ def find_price(query: str, *, ctx: Ctx, must_tokens: set[str] | None = None,
     allow = allowed_domains()
     if not prov.configured() or not allow:
         return None
+    global last_error
     hits: list[SearchHit] = []
     try:
-        # One retry for transient failures (DNS, timeouts, 429/5xx). If the search API stays down, this row
-        # simply has no web price; it must never fail the whole run.
+        # One retry for transient failures (DNS, timeouts, 429/5xx). A provider that keeps failing raises
+        # SearchUnavailable so callers say so (and stop asking) instead of reporting "nothing found".
         for attempt in (1, 2):
             try:
                 hits = prov.search(query, count=6, domains=list(allow))
+                last_error = None
                 break
             except httpx.HTTPError as e:
                 status = getattr(getattr(e, "response", None), "status_code", None)
                 transient = status is None or status == 429 or status >= 500
                 if attempt == 2 or not transient:
-                    log.warning("web search failed for %r: %s", query[:80], e)
-                    return None
+                    msg = _provider_error_text(e, prov.name)
+                    log.warning("web search failed for %r: %s", query[:80], msg)
+                    last_error = {"provider": prov.name, "error": msg, "at": datetime.now(timezone.utc).isoformat()}
+                    raise SearchUnavailable(msg) from e
                 time.sleep(1.5)
     finally:
         ledger.record(ctx=ctx, kind="web_search", task="web_search", tier=None, model_id=prov.name, units=1,

@@ -102,6 +102,9 @@ def price_with_events(rc: RunContext, specs: list[RowSpec], *, task: str, target
     em.step_done(f"{step_prefix}:exact",
                  f"{s['exact']} exact · {s['semantic']} close · {s['norm']} norm · {s['model']} model · "
                  f"{s['web']} web · {s['none']} no price")
+    if s.get("web_error"):
+        em.step_warn(f"{step_prefix}:web", f"Web search is unavailable, so no supplier prices were looked up: "
+                                            f"{s['web_error'][:200]}")
     if s.get("model_error"):
         em.step_warn(f"{step_prefix}:model", "The pricing model could not be used, so unclear rows were matched "
                                               f"without it: {s['model_error'][:160]}")

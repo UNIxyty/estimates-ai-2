@@ -95,8 +95,11 @@ def test_search_api_outage_returns_none_instead_of_failing_the_run(monkeypatch):
     monkeypatch.setattr(search, "allowed_domains", lambda: {"shop.example": "LV"})
     monkeypatch.setattr(search.time, "sleep", lambda s: None)
     from app.llm.ledger import Ctx
-    assert search.find_price("Kabelis NYM 3x1,5 cena", ctx=Ctx()) is None
-    assert len(calls) == 2  # one retry for a transient error, then give up quietly
+    import pytest
+    with pytest.raises(search.SearchUnavailable):
+        search.find_price("Kabelis NYM 3x1,5 cena", ctx=Ctx())
+    assert len(calls) == 2  # one retry for a transient error, then report it as unavailable (not "no results")
+    assert search.last_error and "network or provider error" in search.last_error["error"]
 
 
 _REAL_CLIENT = httpx.Client
@@ -185,3 +188,45 @@ def test_allowed_domains_parse_country_from_entry_or_tld(monkeypatch):
         assert search.allowed_domains() == {"elektrika.lv": "LV", "prof.lv": "LV", "shop.ee": "EE", "x.com": "DE"}
     finally:
         object.__setattr__(search.settings, "web_search_domains", "elektrika.lv:LV")
+
+
+def test_provider_403_is_reported_as_unavailable_by_the_tool_and_pricing(monkeypatch):
+    fx.migrate()
+    import pytest
+    from app.agent import tools
+    from app.agent.pricing import PricedRow, PricingEngine, RowSpec
+    from app.llm.ledger import Ctx
+    calls = []
+
+    class Blocked(search.Provider):
+        name = "tavily"
+
+        def configured(self):
+            return True
+
+        def search(self, q, count=5, domains=None):
+            calls.append(q)
+            req = httpx.Request("POST", "https://api.tavily.com/search")
+            raise httpx.HTTPStatusError("403 Forbidden", request=req, response=httpx.Response(403, request=req))
+
+    monkeypatch.setattr(search, "provider", lambda: Blocked())
+    monkeypatch.setattr(search, "allowed_domains", lambda: {"shop.lv": "LV"})
+    with pytest.raises(search.SearchUnavailable, match="refuses requests from this server"):
+        search.find_price("Siemens kontaktligzda", ctx=Ctx())
+    assert len(calls) == 1  # 403 is not transient: no retry
+
+    class RC:
+        ctx = Ctx()
+    out = tools.web_search_price(RC(), "Siemens kontaktligzda balta")
+    assert out["found"] is False and out["web_search_unavailable"] and "403" in out["reason"]
+
+    # In the pricing run the web stage stops at the first failure and records why (rows stay NO PRICE).
+    def lookup(spec):
+        return search.find_price(spec.text, ctx=Ctx())
+    eng = PricingEngine.__new__(PricingEngine)
+    eng.web_lookup, eng.stats = lookup, {"web": 0}
+    eng.should_stop, eng.current, eng.progress = (lambda: False), (lambda *a: None), (lambda *a: None)
+    rows = [PricedRow(spec=RowSpec("E", i, f"Kontaktligzda {i}", "gab.", 1)) for i in range(3)]
+    n_before = len(calls)
+    eng._web(rows, set())
+    assert "403" in eng.stats["web_error"] and len(calls) == n_before + 1 and all(r.unit_material is None for r in rows)

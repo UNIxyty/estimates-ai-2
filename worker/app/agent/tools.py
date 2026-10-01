@@ -125,10 +125,16 @@ def request_file_permission(rc: RunContext, file_id: str, rows: list[dict], reas
 
 
 def web_search_price(rc: RunContext, query: str) -> dict:
-    found = websearch.find_price(query, ctx=rc.ctx, must_tokens={t for t in tokens(query) if len(t) > 3} or None,
-                                 row_text=query)
+    try:
+        found = websearch.find_price(query, ctx=rc.ctx, must_tokens={t for t in tokens(query) if len(t) > 3} or None,
+                                     row_text=query)
+    except websearch.SearchUnavailable as e:
+        return {"found": False, "web_search_unavailable": True, "reason": str(e),
+                "note": "Web search is not working right now. Tell the user this plainly (it is not a 'no results'); "
+                        "do not retry."}
     if not found:
-        return {"found": False}
+        return {"found": False, "searched_suppliers": sorted(websearch.allowed_domains()),
+                "note": "Nothing on the allowlisted supplier sites matched every attribute of the item."}
     return {"found": True, "flag": "WEB", "note": "Retail web price; never stored as a reference price", **found}
 
 
@@ -235,7 +241,11 @@ SPECS: dict[str, dict] = {
                                 "input_schema": _schema({"file_id": {"type": "string"}, "reason": {"type": "string"},
                                                          "rows": {"type": "array", "items": {"type": "object"}}},
                                                         ["file_id", "rows"])},
-    "web_search_price": {"description": "Look up a retail supplier price on the web. Result is flagged WEB.",
+    "web_search_price": {"description": "Look up a retail price on the allowlisted Latvian supplier sites. Write the "
+                                        "query in Latvian like a shop listing: product type + brand + series + key "
+                                        "specs (e.g. 'Siemens Delta kontaktligzda 2P+E 16A balta'). One item per call. "
+                                        "Result is flagged WEB and never saved as a reference price. If the result "
+                                        "says web_search_unavailable, tell the user web search is not working and why.",
                          "input_schema": _schema({"query": {"type": "string"}}, ["query"])},
     "ask_clarifying_questions": {"description": "Ask the user questions instead of guessing.",
                                  "input_schema": _schema({"questions": {"type": "array", "items": _schema(

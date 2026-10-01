@@ -384,7 +384,14 @@ class PricingEngine:
             if self.should_stop():
                 raise llm.Cancelled()
             self.current("web", pr.spec.text)
-            found = self.web_lookup(pr.spec)
+            try:
+                found = self.web_lookup(pr.spec)
+            except Exception as e:  # noqa: BLE001 - SearchUnavailable: stop asking, the rest stay NO PRICE
+                if type(e).__name__ != "SearchUnavailable":
+                    raise
+                self.stats["web_error"] = str(e)[:300]
+                self.progress("web", len(todo), len(todo))
+                return
             if found and found.get("unit_price") is not None:
                 pr.web = found
                 pr.unit_material = float(found["unit_price"])

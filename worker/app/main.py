@@ -71,6 +71,9 @@ def health() -> dict:
         out.update({"ok": False, "db": f"error: {type(e).__name__}"})
     from .llm import client as llm
     out["llm"] = "available" if llm.available() else "unavailable"
+    from .websearch import search as websearch
+    if websearch.last_error:
+        out["web_search"] = websearch.last_error  # provider + reason + when; cleared by the next successful search
     refused = sorted(llm.unavailable_models())
     if refused:
         out["models_refused"] = refused  # model ids only (AccessDenied, retried after a few minutes)
