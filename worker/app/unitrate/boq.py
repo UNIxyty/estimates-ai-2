@@ -689,9 +689,12 @@ def _read_pricing(ws, wv, hdr) -> BoqSheet:
             continue
         has_uom = bool(_s(uom))
         is_item = has_uom or qty is not None or _is_formula(qty_raw) or rate is not None or supply is not None
-        if not is_item and (_DELIVERY.search(d) or _LUMP.search(d)) and any(
-                _num(wv.cell(r, c)) for c in range(desc_c + 1, min(ws.max_column, 40) + 1)):
-            is_item = True  # a delivery / lump-sum line with only an amount (FRA3H GS: H113 = 42 534)
+        if not is_item and (_DELIVERY.search(d) or _LUMP.search(d)) and (not d.isupper() or any(
+                _num(wv.cell(r, c)) for c in range(desc_c + 1, min(ws.max_column, 40) + 1))):
+            # a delivery / lump-sum line with only an amount (FRA3H GS: H113 = 42 534), or with nothing yet (a blank)
+            is_item = True
+        if not is_item and contractor and _MONTHLY.search(d) and not d.isupper():
+            is_item = True  # a contractor item of a blank: no months, no rate yet
         if not is_item:
             # a section header (ALL CAPS group, a "(Free Issued for Install)" heading, a bracket-group title, …)
             section = d
@@ -734,8 +737,9 @@ def _read_pricing(ws, wv, hdr) -> BoqSheet:
             if bv:
                 row.phase_qty[b["label"]] = bv
         # contractor items / lump sums / delivery
+        # accommodation / transport / scissor lifts …: a monthly rate in the thousands, or (a blank) no rate yet
         monthly_word = bool(_MONTHLY.search(d)) and (row.uom_norm in ("month", None)) and \
-            (rate or 0) >= 1000 and not re.search(r"\d+\s*(?:mm|m)\b|cable|tray|ladder", d, re.I)
+            (rate is None or rate >= 1000) and not re.search(r"\d+\s*(?:mm|m)\b|cable|tray|ladder", d, re.I)
         if contractor or monthly_word or _DELIVERY.search(d) or (_LUMP.search(d) and not has_uom and qty is None):
             row.kind = "contractor"
             m = re.search(r"phase\s*(\d+)", d, re.I)

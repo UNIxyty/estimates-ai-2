@@ -7,6 +7,8 @@ import re
 
 from .. import db
 from ..ingest.structure import analyse_workbook
+from ..unitrate import run as unit_rate_run
+from ..unitrate.boq import is_unit_rate_workbook
 from . import cards, common
 from .context import RunContext, RunWaiting
 from .pricing import RowSpec
@@ -82,6 +84,10 @@ def _sheet_rate(sheet) -> float | None:
 def run(rc: RunContext, upload: dict) -> None:
     st = rc.state
     path = common.ensure_xlsx(upload["stored_path"])
+    if rc.state.get("pricing_model") == "unit_rate" or is_unit_rate_workbook(path):
+        # Quantity × unit rate (EU BOQs): a different pricing model with its own setup and references
+        unit_rate_run.run(rc, upload, path)
+        return
     rc.emitter.step_started("read", f"Reading {upload['original_name']}")
     structure = analyse_workbook(path)
     candidates = [s for s in structure.sheets if any(r.kind == "item" for r in s.rows)]

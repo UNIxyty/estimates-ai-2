@@ -128,8 +128,8 @@ def fill(blank_path: str, name: str, user: dict, allowed: list[str], truth_sheet
     agent_run.run_agent({"run_id": rid})
     for _ in range(3):  # answer the setup / sheet questions like the estimator would (never with prices)
         card = db.fetchone("SELECT * FROM cards WHERE run_id=%s AND kind='clarify' AND status='pending'", (rid,))
-        if not card:
-            break
+        if not card or card["payload"].get("purpose") == "unit_rate_setup":
+            break  # a unit-rate setup card is answered by unitrate.gate (programme, packages, dates)
         answers = {}
         for q in card["payload"]["questions"]:
             if q["id"] == "sheets":
@@ -286,6 +286,33 @@ def ingest_report(file_ids: list[str]) -> tuple[str, list[dict]]:
     return "\n".join(lines) + "\n", [dict(r, id=str(r["id"]), cost=float(r["cost"])) for r in rows]
 
 
+def _unit_rate_gate(a) -> int:
+    """--model unit_rate: leave-one-out over unit-rate BOQs through ingestion and the chat run path. The model service
+    is switched off for the whole gate: unit-rate filling makes no model call, so cost per run must be $0 (ingestion
+    embeddings are skipped too; matching is attribute-based and does not use them)."""
+    from .unitrate.gate import db_loo
+    from .unitrate.gate import render as ur_render
+    if not a.loo:
+        print("--model unit_rate needs --loo DIR", file=sys.stderr)
+        return 2
+    object.__setattr__(settings, "llm_enabled", False)
+    files = sorted(p for p in glob.glob(os.path.join(a.loo, "*")) if p.lower().endswith((".xlsx", ".xls"))
+                   and not os.path.basename(p).startswith(("~$", ".")))
+    print(f"Unit-rate gate: {len(files)} BOQ(s), leave-one-out through the run path…")
+    scores, ingested = db_loo(files, os.path.join(settings.data_dir, "gate", f"ur_{uuid.uuid4().hex[:8]}"))
+    lines = ["", "## References ingested", "", "| File | Status | Model | Market | Client | End client | Package | Rows |",
+             "|---|---|---|---|---|---|---|---|"]
+    lines += [f"| {r['original_name']} | {r['status']} | {r['pricing_model']} | {r['market'] or '–'} | "
+              f"{r['client'] or '–'} | {r['end_client'] or '–'} | {r['package'] or '–'} | {r['n']} |" for r in ingested]
+    report = ur_render(scores, title="Unit-rate accuracy gate (leave-one-out, run path)") + "\n".join(lines) + "\n"
+    with open(a.out, "w", encoding="utf-8") as fh:
+        fh.write(report)
+    with open(os.path.splitext(a.out)[0] + ".json", "w", encoding="utf-8") as fh:
+        json.dump([s.__dict__ for s in scores], fh, indent=1, default=str)
+    print(report)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--loo", help="directory of hand-priced reference estimates (leave-one-out)")
@@ -294,11 +321,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--norms", nargs="*", default=[], help="hourly-norm files")
     ap.add_argument("--prices", nargs="*", default=[], help="price lists")
     ap.add_argument("--knowledge", help="directory (recursive) of extra knowledge: estimates, price lists, norms")
+    ap.add_argument("--model", choices=["hourly_norm", "unit_rate"], default="hourly_norm",
+                    help="unit_rate: leave-one-out over unit-rate BOQs (--loo DIR), no hourly rate, no model calls")
     ap.add_argument("--out", default="accuracy_report.md")
     ap.add_argument("--cleanup", action="store_true", help="delete the gate's files/conversations afterwards")
     a = ap.parse_args(argv)
     run_migrations()
     db.reset_pool()
+    if a.model == "unit_rate":
+        return _unit_rate_gate(a)
     user = gate_user()
     uid = str(user["id"])
 

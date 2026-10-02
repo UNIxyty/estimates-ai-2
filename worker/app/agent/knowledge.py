@@ -104,8 +104,11 @@ class Knowledge:
     @classmethod
     def load(cls) -> "Knowledge":
         kb = cls()
+        # hourly-norm knowledge only: unit-rate BOQs (€ per unit, no hours) are a different pricing model and are
+        # never mixed into an hourly run (app.unitrate handles them)
         for f in db.fetchall("""SELECT id, original_name, tag, language, summary FROM files
-                                WHERE status='analysed' AND deleted_at IS NULL"""):
+                                WHERE status='analysed' AND deleted_at IS NULL
+                                  AND COALESCE(pricing_model, 'hourly_norm') = 'hourly_norm'"""):
             kb.files[str(f["id"])] = {"id": str(f["id"]), "name": f["original_name"], "tag": f["tag"],
                                       "language": f["language"], "summary": f["summary"] or {}}
         if not kb.files:
@@ -115,7 +118,8 @@ class Knowledge:
                 """SELECT id, file_id, sheet_name, row_idx, section_title, item_text, unit, unit_norm, qty,
                           norm_h_per_unit, unit_labour, unit_material, hourly_rate, currency, attrs, category,
                           override, embedding IS NOT NULL AS has_emb
-                   FROM price_items WHERE file_id = ANY(%s)""", (ids,)):
+                   FROM price_items WHERE file_id = ANY(%s)
+                     AND COALESCE(pricing_model, 'hourly_norm') = 'hourly_norm'""", (ids,)):
             o = r["override"] or {}
             fid = str(r["file_id"])
             text = o.get("item_text", r["item_text"])

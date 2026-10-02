@@ -44,6 +44,10 @@ def card_label(r: BoqRow) -> str:
     if comp == "tier_bracket" or (comp == "bracket" and a.get("tiers")):
         return f"Bracket {a.get('width_mm') or '?'} mm · {a.get('tiers') or 1} tier"
     if comp == "unistrut":
+        if re.search(r"isolator\s+unistrut\s+support", d):
+            return "Unistrut support (isolator)"
+        if re.search(r"device\s+unistrut\s+support", d):
+            return "Unistrut support (device)"
         return "Unistrut (double)" if "double" in d else "Unistrut"
     if prod == "termination":
         return f"Termination {a['mm2']:g} mm²" if a.get("mm2") else "Termination"

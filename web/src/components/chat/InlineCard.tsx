@@ -126,12 +126,13 @@ function DecisionCard({ card }: { card: Card }) {
 
   /* ---------------- permission */
   if (card.kind === 'permission') {
-    const fname = p.file_name || files[p.file_id]?.original_name || 'another file';
+    const fileId = p.file_id ?? p.ref_file_id;
+    const fname = p.file_name || files[fileId]?.original_name || 'another file';
     const rows: { sheet?: string; row?: number; item?: string }[] = Array.isArray(p.rows) ? p.rows : [];
     const total = Number(p.row_count ?? rows.length);
     const custom = typeof p.reason === 'string' && p.reason && !/^The closest prices for/.test(p.reason);
     const fileLink = (
-      <button type="button" onClick={() => openFile(p.file_id, fname)} className="hv-under"
+      <button type="button" onClick={() => openFile(fileId, fname)} className="hv-under"
         style={{ border: 0, padding: 0, background: 'transparent', font: 'inherit', fontWeight: 600, color: 'inherit', cursor: 'pointer' }}>'{fname}'</button>
     );
     body = (
@@ -149,10 +150,12 @@ function DecisionCard({ card }: { card: Card }) {
       canReask = true;
     } else if (card.status === 'approved') {
       pill = resumed && run?.status === 'done' ? 'done' : 'approved';
-      footer = pill === 'done' ? `Used ${fname} for ${total} row${total === 1 ? '' : 's'}.` : `Allowed for this estimate. ${fname} is now a reference.`;
+      footer = p.cross_model ? `Allowed: its € per unit are used as unit rates, each line marked CHECK.`
+        : pill === 'done' ? `Used ${fname} for ${total} row${total === 1 ? '' : 's'}.` : `Allowed for this estimate. ${fname} is now a reference.`;
     } else if (card.status === 'denied') {
       pill = 'denied';
-      footer = resumed && run?.status === 'done' ? 'Denied. Searched supplier websites instead.' : 'Denied. Searching supplier websites instead.';
+      footer = p.cross_model ? 'Denied. Lines without a unit-rate reference stay without a price.'
+        : resumed && run?.status === 'done' ? 'Denied. Searched supplier websites instead.' : 'Denied. Searching supplier websites instead.';
     }
     canUndo = (card.status === 'approved' || card.status === 'denied') && undoEnd != null && undoEnd > now;
     if (card.status === 'pending' && !expired)
@@ -186,7 +189,9 @@ function DecisionCard({ card }: { card: Card }) {
   if (card.kind === 'clarify') {
     pill = card.status === 'pending' ? 'pending' : card.status === 'answered' ? 'done' : 'expired';
     footer = card.status === 'answered' ? 'Answers sent.' : card.status === 'expired' ? 'Expired. You sent a new message instead.' : '';
-    body = p.purpose === 'confirm_setup'
+    body = p.purpose === 'unit_rate_setup'
+      ? <div>This is a unit-rate BOQ: every line is quantity × rate, with no hours and no hourly rate. Confirm the programme, the packages and the offer details.</div>
+      : p.purpose === 'confirm_setup'
       ? <div>Before I price this blank: confirm the hourly rate{Array.isArray(p.questions) && p.questions.some((q: { id?: string }) => q.id === 'sheets') ? ' and which sheets to price' : ''}. Every labour row uses this rate.</div>
       : p.purpose === 'confirm_sheets'
         ? <div>I&apos;m not sure which sheets hold the electrical works. Pick them and I&apos;ll start.</div>
@@ -239,7 +244,7 @@ function DecisionCard({ card }: { card: Card }) {
     <div data-card-kind={card.kind} data-card-status={card.status}
       style={{ width: '100%', border: `1px solid ${pending ? 'var(--acc)' : pill === 'failed' ? 'var(--err)' : 'var(--line)'}`, borderRadius: 14, background: 'var(--panel)', fontSize: 14, lineHeight: 1.5, color: 'var(--ink)', overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px 0' }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink2)' }}>{LABEL[card.kind] ?? card.kind}</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink2)' }}>{(card.kind === 'permission' && p.title) || (LABEL[card.kind] ?? card.kind)}</span>
         <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, height: 22, padding: '0 8px', borderRadius: 11, fontSize: 11.5, fontWeight: 500, color: pfg, background: pbg, whiteSpace: 'nowrap' }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />{pl}
         </span>
@@ -331,15 +336,17 @@ function ClarifyBody({ card, busy, decide }: { card: Card; busy: boolean; decide
   const p = card.payload || {};
   const qs: {
     id: string; text: string; options?: (string | { value?: string; label?: string })[]; multi?: boolean; suggested?: string[];
-    type?: 'number'; default?: number | string | null; unit?: string; hint?: string;
+    type?: 'number' | 'date' | 'text'; default?: number | string | null; unit?: string; hint?: string; optional?: boolean;
     option_meta?: Record<string, { confidence?: number; reason?: string }>;
   }[] = Array.isArray(p.questions) ? p.questions : [];
   const [ans, setAns] = useState<Record<string, unknown>>(() => Object.fromEntries([
     ...qs.filter((q) => q.multi && q.suggested?.length).map((q) => [q.id, q.suggested]),
     ...qs.filter((q) => q.type === 'number' && q.default != null).map((q) => [q.id, String(q.default)]),
+    ...qs.filter((q) => (q.type === 'date' || q.type === 'text' || (q.options?.length && !q.multi)) && q.default != null)
+      .map((q) => [q.id, String(q.default)]),
   ]));
   const validNumber = (v: unknown) => { const n = Number(String(v ?? '').replace(',', '.')); return Number.isFinite(n) && n > 0; };
-  const answered = qs.filter((q) => { const v = ans[q.id]; if (q.type === 'number') return validNumber(v); return Array.isArray(v) ? v.length > 0 : typeof v === 'string' ? v.trim() !== '' : v != null; }).length;
+  const answered = qs.filter((q) => { const v = ans[q.id]; if (q.optional && (v == null || v === '')) return true; if (q.type === 'number') return validNumber(v); return Array.isArray(v) ? v.length > 0 : typeof v === 'string' ? v.trim() !== '' : v != null; }).length;
   const all = answered === qs.length;
 
   if (card.status !== 'pending') {
@@ -357,7 +364,7 @@ function ClarifyBody({ card, busy, decide }: { card: Card; busy: boolean; decide
     );
   }
   const skip = () => decide('answer', { answers: Object.fromEntries(qs.map((q) => [q.id, ans[q.id] ?? (q.type === 'number' ? q.default ?? null : q.multi && q.suggested?.length ? q.suggested : SKIP)])) });
-  const send = () => decide('answer', { answers: Object.fromEntries(qs.map((q) => [q.id, q.type === 'number' ? Number(String(ans[q.id]).replace(',', '.')) : ans[q.id]])) });
+  const send = () => decide('answer', { answers: Object.fromEntries(qs.map((q) => [q.id, q.type === 'number' ? (ans[q.id] == null || ans[q.id] === '' ? null : Number(String(ans[q.id]).replace(',', '.'))) : ans[q.id]])) });
   return (
     <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '10px 16px 4px' }}>
@@ -387,11 +394,14 @@ function ClarifyBody({ card, busy, decide }: { card: Card; busy: boolean; decide
                     );
                   })}
                 </div>
+              ) : q.type === 'date' ? (
+                <input type="date" value={String(cur ?? '')} onChange={(e) => setAns((a) => ({ ...a, [q.id]: e.target.value }))} aria-label={q.text}
+                  style={{ width: 170, height: 34, padding: '0 10px', border: '1px solid var(--line)', borderRadius: 9, background: 'var(--bg)', color: 'var(--ink)', font: 'inherit', fontSize: 13.5, outlineColor: 'var(--acc)' }} />
               ) : q.type === 'number' ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                     <input inputMode="decimal" value={String(cur ?? '')} onChange={(e) => setAns((a) => ({ ...a, [q.id]: e.target.value }))} aria-label={q.text}
-                      style={{ width: 110, height: 34, padding: '0 10px', border: `1px solid ${validNumber(cur) ? 'var(--line)' : 'var(--err)'}`, borderRadius: 9, background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--mono)', fontSize: 14, textAlign: 'right', outlineColor: 'var(--acc)' }} />
+                      style={{ width: 110, height: 34, padding: '0 10px', border: `1px solid ${validNumber(cur) || (q.optional && (cur == null || cur === '')) ? 'var(--line)' : 'var(--err)'}`, borderRadius: 9, background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--mono)', fontSize: 14, textAlign: 'right', outlineColor: 'var(--acc)' }} />
                     {q.unit && <span style={{ fontSize: 13, color: 'var(--ink2)' }}>{q.unit}</span>}
                   </label>
                   {q.hint && <span style={{ fontSize: 12.5, color: 'var(--ink3)' }}>{q.hint}</span>}

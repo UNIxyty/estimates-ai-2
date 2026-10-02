@@ -7,6 +7,7 @@ from .. import db, jobs
 from ..config import settings
 from ..llm import client as llm
 from ..llm import router
+from ..unitrate import run as unit_rate_run
 from . import cards, common, fill, generate, qa
 from .context import RunCancelled, RunContext, RunWaiting
 
@@ -150,7 +151,9 @@ def resume_run(payload: dict) -> None:
         rc.set_status("failed", "budget_paused")
         return
     rc.set_status("running")
-    if card["kind"] == "permission":
+    if card["kind"] == "permission" and unit_rate_run.resume_after_permission(rc, card):
+        _execute(rc, lambda: _dispatch(rc, card))  # a unit-rate run re-plans with the new reference set
+    elif card["kind"] == "permission":
         _execute(rc, lambda: common.resume_after_permission(rc, card))
     elif card["kind"] in ("structure", "clarify"):
         _execute(rc, lambda: _dispatch(rc, card))
