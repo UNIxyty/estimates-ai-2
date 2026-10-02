@@ -14,7 +14,7 @@ import { fmtBytes, fmtInt, KindIcon, LangTag } from '@/components/ui';
 import { DeleteFileModal } from './DeleteFileModal';
 import { Brand } from '@/components/Brand';
 import {
-  ACCEPT, guessTag, isBusy, STATUS_FG, statusLabel, TAGS, tagLabel, uploadError, uploadFile, useFiles,
+  ACCEPT, extractedLabel, guessTag, isBusy, isUnitRate, STATUS_FG, statusLabel, TAGS, tagLabel, UnitRateTag, uploadError, uploadFile, useFiles,
   type FileRow, type FileTag,
 } from './shared';
 
@@ -261,13 +261,16 @@ function LearnedCard({ f }: { f: FileRow }) {
     : (s.description || '—');
   const rates = [...new Set(s.hourly_rates ?? [])];
   const cur = s.currency || '';
-  const logic = f.tag === 'hourly_norms'
+  const unit = isUnitRate(f);
+  const logic = unit ? 'Quantity × unit rate (no hours)' : f.tag === 'hourly_norms'
     ? 'Hours per unit'
     : rates.length
       ? `Norm × ${rates.map((r) => `${cur} ${fmtRate(r)}/h`.trim()).join(', ')}`
       : f.tag === 'price_list' ? 'Unit prices' : 'No hourly rate found';
   const saved: string[] = [];
-  if (c) {
+  if (c && unit) {
+    saved.push(extractedLabel(f), `${fmtInt(c.notes)} note${c.notes === 1 ? '' : 's'}`);
+  } else if (c) {
     if (c.price_items) saved.push(`${fmtInt(c.price_items)} price${c.price_items === 1 ? '' : 's'}`);
     const norms = c.norms + c.price_norms;
     if (norms) saved.push(`${fmtInt(norms)} norm${norms === 1 ? '' : 's'}`);
@@ -280,6 +283,7 @@ function LearnedCard({ f }: { f: FileRow }) {
         <span style={{ fontSize: 14.5, fontWeight: 600, overflowWrap: 'anywhere' }}>{f.original_name}</span>
         <LangTag lang={f.language} />
         <span style={{ fontSize: 12.5, color: 'var(--ink3)' }}>{tagLabel(f.tag)}</span>
+        {unit && <UnitRateTag market={f.market} />}
         <Link href={`/knowledge/${f.id}`} style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 500 }}>Review details ›</Link>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>

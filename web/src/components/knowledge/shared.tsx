@@ -1,7 +1,7 @@
 'use client';
 
 /** Shared knowledge-base helpers: file type labels, statuses, the polling file list, uploads. */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { api, ApiError } from '@/lib/client';
 import { fmtInt, type Tone } from '@/components/ui';
 
@@ -36,7 +36,8 @@ export interface FileSummary {
   description?: string;
   hourly_rates?: number[];
 }
-export interface FileCounts { price_items: number; price_norms: number; norms: number; notes: number; sections: number; used_in: number }
+export interface FileCounts { price_items: number; price_norms: number; norms: number; notes: number; sections: number; used_in: number; install_rates?: number; supply_rates?: number }
+export type PricingModel = 'hourly_norm' | 'unit_rate';
 export interface FileRow {
   id: string;
   original_name: string;
@@ -54,6 +55,35 @@ export interface FileRow {
   uploaded_by: string | null;
   uploaded_by_name: string | null;
   counts?: FileCounts;
+  /** 'unit_rate': EU subcontract BOQ priced per unit (Total = Quantity × Rate, no hours). */
+  pricing_model?: PricingModel;
+  market?: string | null;
+  client?: string | null;
+  end_client?: string | null;
+  package?: string | null;
+  project?: string | null;
+  doc_date?: string | null;
+  analysis?: Record<string, unknown> | null;
+}
+
+export const PACKAGES: [string, string][] = [
+  ['containment', 'Containment'],
+  ['lighting', 'Lighting'],
+  ['gs_sp', 'General services / small power'],
+  ['cable', 'Cable'],
+  ['electrical', 'Electrical services (several packages)'],
+];
+export const packageLabel = (p: string | null | undefined) => (p ? Object.fromEntries(PACKAGES)[p] ?? p : '—');
+export const isUnitRate = (f: Pick<FileRow, 'pricing_model'>) => f.pricing_model === 'unit_rate';
+
+/** Small "Unit rate · DE" tag that sets unit-rate BOQs apart from hourly-norm tāmes. */
+export function UnitRateTag({ market, style }: { market?: string | null; style?: CSSProperties }) {
+  return (
+    <span title="Unit-rate BOQ: Total = Quantity × Rate, no hours"
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 20, padding: '0 7px', borderRadius: 5, background: 'var(--webSoft)', color: 'var(--web)', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', flex: 'none', ...style }}>
+      Unit rate{market ? <span style={{ fontFamily: 'var(--mono)', fontWeight: 500 }}>· {market}</span> : null}
+    </span>
+  );
 }
 
 /** GET /api/files, re-polled every 2 s while any file is queued, being read or analysed. */
@@ -108,12 +138,13 @@ export function uploadError(e: unknown, file: File): string {
   return 'The upload failed because the connection dropped. Try again.';
 }
 
-export async function uploadFile(file: File, tag: string): Promise<FileRow> {
+/** Upload; a byte-identical file already in the knowledge base comes back as that file with duplicate = true. */
+export async function uploadFile(file: File, tag: string): Promise<FileRow & { duplicate?: boolean }> {
   const fd = new FormData();
   fd.set('file', file);
   fd.set('tag', tag);
-  const r = await api<{ file: FileRow }>('/api/files', { method: 'POST', body: fd });
-  return r.file;
+  const r = await api<{ file: FileRow; duplicate?: boolean }>('/api/files', { method: 'POST', body: fd });
+  return { ...r.file, duplicate: !!r.duplicate };
 }
 
 /** "640 prices · 598 norms", "46 norms", "12 notes"; "In progress" while analysing. */
@@ -123,6 +154,14 @@ export function extractedLabel(f: FileRow): string {
   const c = f.counts;
   if (!c) return '—';
   const parts: string[] = [];
+  if (isUnitRate(f)) {
+    const ins = c.install_rates ?? 0, sup = c.supply_rates ?? 0;
+    if (ins) parts.push(`${fmtInt(ins)} install`);
+    if (sup) parts.push(`${fmtInt(sup)} supply`);
+    if (parts.length) return `${parts.join(' · ')} rate${ins + sup === 1 ? '' : 's'}`;
+    if (c.price_items) return `${fmtInt(c.price_items)} rate${c.price_items === 1 ? '' : 's'}`;
+    return c.notes ? `${fmtInt(c.notes)} note${c.notes === 1 ? '' : 's'}` : 'Nothing extracted';
+  }
   const prices = c.price_items, norms = c.norms + c.price_norms;
   if (prices) parts.push(`${fmtInt(prices)} price${prices === 1 ? '' : 's'}`);
   if (norms) parts.push(`${fmtInt(norms)} norm${norms === 1 ? '' : 's'}`);

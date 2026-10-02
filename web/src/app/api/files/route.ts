@@ -19,5 +19,6 @@ export const POST = route(async (req) => {
   } catch {
     throw badRequest('multipart_required');
   }
-  return json({ file: await uploadKnowledgeFile(user, form) }, 201);
+  const { file, duplicate } = await uploadKnowledgeFile(user, form);
+  return json({ file, duplicate }, duplicate ? 200 : 201);
 });

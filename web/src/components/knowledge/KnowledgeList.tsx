@@ -13,8 +13,8 @@ import { useDocViewer } from '@/components/viewer/useDocViewer';
 import { ViewerLayout } from '@/components/viewer/ViewerLayout';
 import type { DocRef } from '@/components/viewer/types';
 import {
-  ACCEPT, extractedLabel, guessTag, isBusy, shortDate, STATUS_TONE, statusLabel, TAGS, tagLabel, uploadError, uploadFile,
-  usedLabel, useFiles, viewerSubtitle, type FileRow,
+  ACCEPT, extractedLabel, guessTag, isBusy, isUnitRate, packageLabel, shortDate, STATUS_TONE, statusLabel, TAGS, tagLabel, uploadError, uploadFile,
+  UnitRateTag, usedLabel, useFiles, viewerSubtitle, type FileRow,
 } from './shared';
 
 const GRID = 'minmax(220px,2fr) 190px 60px 84px 110px 150px 84px 70px';
@@ -46,7 +46,8 @@ export function KnowledgeList() {
     setUploading((n) => n + list.length);
     for (const file of list) {
       try {
-        await uploadFile(file, guessTag(file.name));
+        const nf = await uploadFile(file, guessTag(file.name));
+        if (nf.duplicate) setUpErrors((es) => [...es, `${file.name}: already in the knowledge base as “${nf.original_name}” (identical file), not added again.`]);
       } catch (e) {
         setUpErrors((es) => [...es, `${file.name}: ${uploadError(e, file)}`]);
       }
@@ -124,7 +125,21 @@ export function KnowledgeList() {
                       style={{ display: 'grid', gridTemplateColumns: GRID, alignItems: 'center', padding: '0 8px', borderBottom: i === rows.length - 1 ? 0 : '1px solid var(--line2)', textDecoration: 'none', color: 'var(--ink)', fontSize: 13.5 }}>
                       <div style={{ ...cell, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                         <KindIcon name={f.original_name} />
-                        <span style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={f.original_name}>{f.original_name}</span>
+                        {isUnitRate(f) ? (
+                          <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+                            <span style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={f.original_name}>{f.original_name}</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                              <UnitRateTag market={f.market} />
+                              {(f.project || f.package) && (
+                                <span style={{ fontSize: 12, color: 'var(--ink3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {[f.package ? packageLabel(f.package) : null, f.project].filter(Boolean).join(' · ')}
+                                </span>
+                              )}
+                            </span>
+                          </span>
+                        ) : (
+                          <span style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={f.original_name}>{f.original_name}</span>
+                        )}
                       </div>
                       <div style={{ ...cell, color: 'var(--ink2)' }}>{tagLabel(f.tag)}</div>
                       <div style={cell}>{f.language ? <LangTag lang={f.language} /> : <span style={{ color: 'var(--ink3)' }}>—</span>}</div>
@@ -132,7 +147,7 @@ export function KnowledgeList() {
                       <div style={cell}>
                         <StatusBadge label={f.status === 'analysing' ? `Analysing · ${f.progress}%` : statusLabel(f.status)} tone={STATUS_TONE[f.status]} />
                       </div>
-                      <div style={{ ...cell, color: 'var(--ink2)', fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={f.status === 'failed' ? f.fail_reason ?? undefined : undefined}>{extractedLabel(f)}</div>
+                      <div style={{ ...cell, color: 'var(--ink2)', fontSize: 12.5, ...(isUnitRate(f) && f.status === 'analysed' ? { lineHeight: 1.4 } : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }) }} title={f.status === 'failed' ? f.fail_reason ?? undefined : undefined}>{extractedLabel(f)}</div>
                       <div style={{ ...cell, color: 'var(--ink2)', fontSize: 12.5 }}>{usedLabel(f)}</div>
                       <div style={{ ...cell, display: 'flex', justifyContent: 'flex-end' }}>
                         <button type="button" className="hv-sunk" onClick={(e) => { e.preventDefault(); e.stopPropagation(); open(f); }}

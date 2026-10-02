@@ -14,8 +14,11 @@ import { fmtInt, KindIcon, LangTag, Spinner, StatusBadge } from '@/components/ui
 import { useDocViewer } from '@/components/viewer/useDocViewer';
 import { ViewerLayout } from '@/components/viewer/ViewerLayout';
 import { DeleteFileModal } from '../DeleteFileModal';
-import { ACCEPT, isBusy, STATUS_TONE, statusLabel, tagLabel, uploadError, uploadFile, viewerSubtitle } from '../shared';
-import type { Detail } from './types';
+import { ACCEPT, isBusy, packageLabel, STATUS_TONE, statusLabel, tagLabel, uploadError, uploadFile, viewerSubtitle } from '../shared';
+import { unitRate, type Detail } from './types';
+import { UnitStructureTab } from './UnitStructureTab';
+import { RateCardTab } from './RateCardTab';
+import { UnitNumbersTab } from './UnitNumbersTab';
 import { OverviewTab } from './OverviewTab';
 import { StructureTab } from './StructureTab';
 import { LogicTab } from './LogicTab';
@@ -23,7 +26,9 @@ import { NumbersTab } from './NumbersTab';
 import { NotesTab } from './NotesTab';
 
 const TABS = [['overview', 'Overview'], ['structure', 'Structure'], ['logic', 'Calculation logic'], ['numbers', 'Saved numbers'], ['notes', 'Agent notes']] as const;
-type TabKey = (typeof TABS)[number][0];
+/** Unit-rate BOQs have no calculation logic (no hours, no hourly rate): a "Rate card" tab takes its place. */
+const UNIT_TABS = [['overview', 'Overview'], ['structure', 'Structure'], ['rates', 'Rate card'], ['numbers', 'Saved numbers'], ['notes', 'Agent notes']] as const;
+type TabKey = (typeof TABS)[number][0] | (typeof UNIT_TABS)[number][0];
 
 const actionBtn: CSSProperties = { height: 38, padding: '0 14px', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--panel)', color: 'var(--ink)', font: 'inherit', fontSize: 13.5, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 };
 
@@ -42,7 +47,11 @@ export function FileDetail({ fileId }: { fileId: string }) {
   const replaceInput = useRef<HTMLInputElement>(null);
 
   const tabParam = search.get('tab');
-  const tab: TabKey = (TABS.find((t) => t[0] === tabParam)?.[0] ?? 'overview') as TabKey;
+  const ur = d ? unitRate(d) : null;
+  const tabs: readonly (readonly [TabKey, string])[] = ur ? UNIT_TABS : TABS;
+  // ?tab=logic on a unit-rate file (and ?tab=rates on an hourly one) lands on the tab that takes its place.
+  const wanted = ur && tabParam === 'logic' ? 'rates' : !ur && tabParam === 'rates' ? 'logic' : tabParam;
+  const tab: TabKey = (tabs.find((t) => t[0] === wanted)?.[0] ?? 'overview') as TabKey;
   const setTab = (k: TabKey) => router.replace(`${pathname}${k === 'overview' ? '' : `?tab=${k}`}`, { scroll: false });
 
   const load = useCallback(async () => {
@@ -143,6 +152,15 @@ export function FileDetail({ fileId }: { fileId: string }) {
                 <span>{tagLabel(f.tag)}</span>
                 <LangTag lang={f.language} />
                 <StatusBadge label={statusLabel(f.status)} tone={STATUS_TONE[f.status]} />
+                {ur && (
+                  <span title="Unit-rate BOQ: every line is Quantity × Rate (€ per m / no / item / week / month); no hours, no hourly rate"
+                    style={{ display: 'inline-flex', alignItems: 'center', height: 22, padding: '0 9px', borderRadius: 11, background: 'var(--webSoft)', color: 'var(--web)', fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap' }}>
+                    Pricing model: Unit rate (no hours)
+                  </span>
+                )}
+                {ur && (f.market || f.project) && (
+                  <span style={{ color: 'var(--ink3)' }}>{[f.market, f.project, packageLabel(f.package) !== '—' ? packageLabel(f.package) : null].filter(Boolean).join(' · ')}</span>
+                )}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -184,7 +202,7 @@ export function FileDetail({ fileId }: { fileId: string }) {
           {!failed && (
             <>
               <div role="tablist" style={{ display: 'flex', gap: 2, borderBottom: '1px solid var(--line)', overflowX: 'auto' }}>
-                {TABS.map(([key, label]) => {
+                {tabs.map(([key, label]) => {
                   const on = tab === key;
                   const count = key === 'numbers' && savedCount ? fmtInt(savedCount) : '';
                   return (
@@ -196,10 +214,11 @@ export function FileDetail({ fileId }: { fileId: string }) {
                   );
                 })}
               </div>
-              {tab === 'overview' && <OverviewTab d={d} />}
-              {tab === 'structure' && <StructureTab d={d} />}
+              {tab === 'overview' && <OverviewTab d={d} canEdit={canEdit} onChanged={load} />}
+              {tab === 'structure' && (ur ? <UnitStructureTab a={ur} /> : <StructureTab d={d} />)}
               {tab === 'logic' && <LogicTab d={d} canEdit={canEdit} onChanged={load} />}
-              {tab === 'numbers' && <NumbersTab d={d} canEdit={canEdit} onChanged={load} />}
+              {tab === 'rates' && ur && <RateCardTab a={ur} />}
+              {tab === 'numbers' && (ur ? <UnitNumbersTab d={d} canEdit={canEdit} onChanged={load} /> : <NumbersTab d={d} canEdit={canEdit} onChanged={load} />)}
               {tab === 'notes' && <NotesTab d={d} canEdit={canEdit} onChanged={load} />}
             </>
           )}

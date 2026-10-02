@@ -1,7 +1,6 @@
-import { z } from 'zod';
 import { json, readJson, route, uuidParam } from '@/lib/http';
 import { requireUser } from '@/lib/auth/guard';
-import { deleteFile, fileDetail, setTag, tagSchema } from '@/lib/knowledge';
+import { deleteFile, fileDetail, filePatchSchema, updateFile } from '@/lib/knowledge';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,8 +12,9 @@ export const GET = route<{ id: string }>(async (req, p) => {
 
 export const PATCH = route<{ id: string }>(async (req, p) => {
   const { user } = await requireUser(req);
-  const body = await readJson(req, z.object({ tag: tagSchema }).strict());
-  return json(await setTag(user, uuidParam(p.id), body.tag));
+  // { tag?, market?, client?, package? } — uploader or admin.
+  const body = await readJson(req, filePatchSchema);
+  return json(await updateFile(user, uuidParam(p.id), body));
 });
 
 export const DELETE = route<{ id: string }>(async (req, p) => {

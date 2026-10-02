@@ -120,6 +120,21 @@ def ingest_file(payload: dict) -> dict | None:
             db.execute("UPDATE files SET work_path=%s, updated_at=now() WHERE id=%s", (work_path, file_id))
         _set_status(file_id, "analysing", 15)
         progress.last = 15
+        # Unit-rate BOQs (EU subcontract BOQs: Quantity × Rate, no hours) take their own reader; tāmes are unchanged.
+        if f["ext"] in ("xlsx", "xls"):
+            from ..unitrate.boq import is_unit_rate_workbook, read_boq
+            book = doc.work_path or path
+            if is_unit_rate_workbook(book):
+                from ..unitrate.ingest import persist_unit_rate
+                embed_fn = _embed_texts()
+                stats = persist_unit_rate(
+                    file_id, read_boq(book, file_name=f["original_name"]), file_name=f["original_name"],
+                    work_path=work_path,
+                    embed=(lambda texts: embed_fn(texts, file_id=file_id, user_id=user_id)) if embed_fn else None)
+                stats["seconds"] = round(time.monotonic() - t0, 2)
+                db.execute("UPDATE files SET stats = stats || %s WHERE id=%s", (db.jsonb(stats), file_id))
+                log.info("ingest_file %s (unit rate): %s", file_id, json.dumps(stats))
+                return stats
         llm_fn = _structure_llm(file_id, user_id)
         ws = analyse_workbook(document=doc, llm=llm_fn, tag=tag, progress=lambda p: progress(15 + p * 0.35))
         prices = extract_prices(ws, tag=tag)

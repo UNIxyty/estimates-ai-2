@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { json, sql } from './db';
 import { badRequest, HttpError, notFound } from './http';
@@ -14,14 +14,21 @@ export const tagSchema = z.enum(FILE_TAGS);
 const FILE_LIST_COLS = () => sql`
   f.id, f.original_name, f.ext, f.size_bytes, f.tag, f.status, f.progress, f.fail_reason, f.language,
   f.summary, f.created_at, f.updated_at, f.analysed_at, f.uploaded_by, u.name AS uploaded_by_name,
+  f.pricing_model, f.market, f.client, f.end_client, f.package, f.project,
   jsonb_build_object(
     'price_items', (SELECT count(*)::int FROM price_items p WHERE p.file_id = f.id),
     'price_norms', (SELECT count(*)::int FROM price_items p WHERE p.file_id = f.id AND p.norm_h_per_unit IS NOT NULL),
     'norms', (SELECT count(*)::int FROM norms n WHERE n.file_id = f.id),
     'notes', (SELECT count(*)::int FROM agent_notes a WHERE a.file_id = f.id),
     'sections', (SELECT count(*)::int FROM file_sections s WHERE s.file_id = f.id),
-    'used_in', (SELECT count(DISTINCT fu.conversation_id)::int FROM file_usage fu WHERE fu.file_id = f.id)
+    'used_in', (SELECT count(DISTINCT fu.conversation_id)::int FROM file_usage fu WHERE fu.file_id = f.id),
+    -- unit-rate BOQs: item install rates (prelims / contractor items aside) and material supply rates
+    'install_rates', (SELECT count(*)::int FROM price_items p WHERE p.file_id = f.id AND p.pricing_model = 'unit_rate'
+                        AND p.install_rate IS NOT NULL AND COALESCE(p.package, '') NOT IN ('prelims', 'contractor_items')),
+    'supply_rates', (SELECT count(*)::int FROM price_items p WHERE p.file_id = f.id AND p.pricing_model = 'unit_rate'
+                       AND p.supply_rate IS NOT NULL)
   ) AS counts`;
+
 
 /** Server paths stay server-side. */
 export function publicFile<T extends Record<string, unknown>>(row: T) {
@@ -34,10 +41,18 @@ export async function listFiles() {
               WHERE f.deleted_at IS NULL ORDER BY f.created_at DESC`;
 }
 
-export async function uploadKnowledgeFile(user: SessionUser, form: FormData) {
+/**
+ * Stores a knowledge file and queues its analysis. A byte-identical file already in the knowledge base is not stored
+ * twice: the existing file comes back with duplicate = true.
+ */
+export async function uploadKnowledgeFile(user: SessionUser, form: FormData): Promise<{ file: Record<string, unknown>; duplicate: boolean }> {
   const file = checkUploadFile(form.get('file'), KNOWLEDGE_EXTS);
   const tag = tagSchema.safeParse(form.get('tag') ?? 'other');
   if (!tag.success) throw badRequest('invalid_tag', { allowed: FILE_TAGS });
+  const sha256 = createHash('sha256').update(Buffer.from(await file.arrayBuffer())).digest('hex');
+  const dup = (await sql`SELECT * FROM files WHERE sha256 = ${sha256} AND deleted_at IS NULL
+                          ORDER BY created_at LIMIT 1`)[0];
+  if (dup) return { file: publicFile(dup), duplicate: true };
   const id = randomUUID();
   const ext = extOf(file.name);
   const saved = await saveFile(`knowledge/${id}/original.${ext}`, file);
@@ -48,7 +63,7 @@ export async function uploadKnowledgeFile(user: SessionUser, form: FormData) {
               ${saved.sha256}, ${saved.absPath}, ${tag.data}, 'queued', 0)
       RETURNING *`)[0];
     await enqueueJob(tx, 'ingest_file', { file_id: id }, { dedupeKey: `ingest:${id}` });
-    return publicFile(row);
+    return { file: publicFile(row), duplicate: false };
   });
 }
 
@@ -75,7 +90,10 @@ export async function fileDetail(viewerId: string, id: string) {
                (SELECT count(*)::int FROM file_logic WHERE file_id = ${id}) AS logic,
                (SELECT count(*)::int FROM agent_notes WHERE file_id = ${id}) AS notes,
                (SELECT count(*)::int FROM file_sheets WHERE file_id = ${id}) AS sheets,
-               (SELECT count(*)::int FROM file_sections WHERE file_id = ${id}) AS sections`,
+               (SELECT count(*)::int FROM file_sections WHERE file_id = ${id}) AS sections,
+               (SELECT count(*)::int FROM price_items WHERE file_id = ${id} AND pricing_model = 'unit_rate' AND install_rate IS NOT NULL
+                   AND COALESCE(package, '') NOT IN ('prelims', 'contractor_items')) AS install_rates,
+               (SELECT count(*)::int FROM price_items WHERE file_id = ${id} AND pricing_model = 'unit_rate' AND supply_rate IS NOT NULL) AS supply_rates`,
     usedInFor(viewerId, id),
     // Model cost of reading this file (all analyses), and the highest tier that was used.
     sql`SELECT COALESCE(sum(cost_usd), 0)::float AS cost_usd, count(*)::int AS calls,
@@ -108,6 +126,18 @@ const PRICE_OVERRIDE_FIELDS = z
     unit_labour: z.number().nullable(),
     unit_material: z.number().nullable(),
     hourly_rate: z.number().nullable(),
+    category: z.string().max(200).nullable(),
+  })
+  .partial()
+  .strict();
+/** Unit-rate BOQ rows (Total = Quantity × Rate): the install and material-supply rates per unit, no hours. */
+const UNIT_RATE_OVERRIDE_FIELDS = z
+  .object({
+    item_text: z.string().max(2000),
+    unit: z.string().max(50).nullable(),
+    qty: z.number().nullable(),
+    install_rate: z.number().finite().min(0).nullable(),
+    supply_rate: z.number().finite().min(0).nullable(),
     category: z.string().max(200).nullable(),
   })
   .partial()
@@ -145,17 +175,21 @@ export async function listItems(fileId: string, opts: { offset: number; limit: n
     ]);
     return { kind, total: total[0].n, offset: opts.offset, limit: opts.limit, items };
   }
+  // Unit-rate BOQs are also searchable by their rate-card label ("Tray straight · 300 mm").
+  const unit = file.pricing_model === 'unit_rate';
   const [items, total] = await Promise.all([
     sql`SELECT id, file_id, sheet_name, row_idx, section_title, item_text, unit, unit_norm, qty, norm_h_per_unit,
                unit_labour, unit_material, total_labour, total_material, hourly_rate, currency, attrs, category,
                source_cells, extracted_by, override, overridden_by, overridden_at,
+               pricing_model, install_rate, supply_rate, rate_basis, package, rate_key, flags, section_notes, phase_qty,
                (to_jsonb(p) - 'embedding' - 'override') || COALESCE(override, '{}'::jsonb) AS effective,
                (override IS NOT NULL) AS edited
-          FROM price_items p WHERE file_id = ${fileId} AND (${like}::text IS NULL OR item_text ILIKE ${like})
+          FROM price_items p WHERE file_id = ${fileId}
+           AND (${like}::text IS NULL OR item_text ILIKE ${like} OR (${unit} AND rate_key ILIKE ${like}))
          ORDER BY (attrs ? 'user_added') DESC, sheet_name, row_idx
          OFFSET ${opts.offset} LIMIT ${opts.limit}`,
     sql<{ n: number }[]>`SELECT count(*)::int AS n FROM price_items WHERE file_id = ${fileId}
-                           AND (${like}::text IS NULL OR item_text ILIKE ${like})`,
+                           AND (${like}::text IS NULL OR item_text ILIKE ${like} OR (${unit} AND rate_key ILIKE ${like}))`,
   ]);
   return { kind, total: total[0].n, offset: opts.offset, limit: opts.limit, items };
 }
@@ -165,7 +199,10 @@ export async function patchItem(user: SessionUser, fileId: string, itemId: strin
   const file = await visibleFile(fileId);
   assertCanEditFile(user, file);
   const reset = body.reset === true || body.override === null;
-  const isPrice = (await sql`SELECT 1 FROM price_items WHERE id = ${itemId} AND file_id = ${fileId}`).length > 0;
+  const priceRow = (await sql<{ pricing_model: string }[]>`
+    SELECT pricing_model FROM price_items WHERE id = ${itemId} AND file_id = ${fileId}`)[0];
+  const isPrice = !!priceRow;
+  const isUnitRate = priceRow?.pricing_model === 'unit_rate';
   const isNorm = !isPrice && (await sql`SELECT 1 FROM norms WHERE id = ${itemId} AND file_id = ${fileId}`).length > 0;
   if (!isPrice && !isNorm) throw notFound();
   let row;
@@ -176,8 +213,13 @@ export async function patchItem(user: SessionUser, fileId: string, itemId: strin
       : (await sql`UPDATE norms SET override = NULL, overridden_by = NULL, overridden_at = NULL
                     WHERE id = ${itemId} RETURNING id, override`)[0];
   } else {
-    const ov = (isPrice ? PRICE_OVERRIDE_FIELDS : NORM_OVERRIDE_FIELDS).parse(body.override ?? {});
+    const schema = isUnitRate ? UNIT_RATE_OVERRIDE_FIELDS : isPrice ? PRICE_OVERRIDE_FIELDS : NORM_OVERRIDE_FIELDS;
+    const ov: Record<string, unknown> = schema.parse(body.override ?? {});
     if (Object.keys(ov).length === 0) throw badRequest('empty_override');
+    // The worker stores a unit-rate row's install / supply rate in unit_labour / unit_material as well; keep the
+    // two in step so every reader of the effective row sees the person's rate.
+    if (isUnitRate && 'install_rate' in ov) ov.unit_labour = ov.install_rate;
+    if (isUnitRate && 'supply_rate' in ov) ov.unit_material = ov.supply_rate;
     row = isPrice
       ? (await sql`UPDATE price_items SET override = COALESCE(override, '{}'::jsonb) || ${json(ov)},
                           overridden_by = ${user.id}, overridden_at = now()
@@ -231,6 +273,7 @@ export const itemCreateSchema = z
 export async function addItem(user: SessionUser, fileId: string, body: z.infer<typeof itemCreateSchema>) {
   const file = await visibleFile(fileId);
   assertCanEditFile(user, file);
+  if (file.pricing_model === 'unit_rate') throw badRequest('not_supported_for_unit_rate');
   const kind = file.tag === 'hourly_norms' ? 'norms' : 'price_items';
   const unit = body.unit || null;
   const itemNorm = normaliseItemText(body.item_text);
@@ -369,10 +412,43 @@ export async function reanalyse(user: SessionUser, fileId: string) {
   });
 }
 
-export async function setTag(user: SessionUser, fileId: string, tag: z.infer<typeof tagSchema>) {
+export const FILE_PACKAGES = ['containment', 'lighting', 'gs_sp', 'cable', 'electrical'] as const;
+
+/** Blank → null; otherwise trimmed. */
+const blankToNull = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? null : typeof v === 'string' ? v.trim() : v);
+
+/**
+ * PATCH /api/files/{id}: the file type plus the reference's market / client / package (unit-rate BOQs). The worker
+ * keeps a person's market and client when it re-analyses the file.
+ */
+export const filePatchSchema = z
+  .object({
+    tag: tagSchema,
+    /** Country code of the project ("DE", "NL", "LV"), 2–3 letters; null clears it. */
+    market: z.preprocess(
+      (v) => { const t = blankToNull(v); return typeof t === 'string' ? t.toUpperCase() : t; },
+      z.string().regex(/^[A-Z]{2,3}$/, 'market must be a 2–3 letter code').nullable(),
+    ),
+    /** Main contractor the estimate is priced for ("Winthrop"); null clears it. */
+    client: z.preprocess(blankToNull, z.string().max(120).nullable()),
+    package: z.enum(FILE_PACKAGES),
+  })
+  .partial()
+  .strict()
+  .refine((b) => Object.keys(b).length > 0, { message: 'empty_patch' });
+
+export async function updateFile(user: SessionUser, fileId: string, body: z.infer<typeof filePatchSchema>) {
   const file = await visibleFile(fileId);
   assertCanEditFile(user, file);
-  const row = (await sql`UPDATE files SET tag = ${tag}, updated_at = now() WHERE id = ${fileId} RETURNING *`)[0];
+  const has = (k: keyof typeof body) => Object.prototype.hasOwnProperty.call(body, k);
+  const row = (await sql`
+    UPDATE files SET
+      tag     = CASE WHEN ${has('tag')} THEN ${body.tag ?? null}::text ELSE tag END,
+      market  = CASE WHEN ${has('market')} THEN ${body.market ?? null}::text ELSE market END,
+      client  = CASE WHEN ${has('client')} THEN ${body.client ?? null}::text ELSE client END,
+      package = CASE WHEN ${has('package')} THEN ${body.package ?? null}::text ELSE package END,
+      updated_at = now()
+    WHERE id = ${fileId} RETURNING *`)[0];
   return { file: publicFile(row) };
 }
 
